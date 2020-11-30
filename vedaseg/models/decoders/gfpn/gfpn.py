@@ -28,7 +28,7 @@ class GFPN(nn.Module):
 
     def forward(self, bottom_up):
         x = None
-        feats = {}
+        feats = bottom_up.copy()
         for ii, layer in enumerate(self.neck):
             top_down_from_layer = layer.from_layer.get('top_down')
             lateral_from_layer = layer.from_layer.get('lateral')
@@ -50,4 +50,5 @@ class GFPN(nn.Module):
             feats[layer.to_layer] = x
         if self.fusion:
             x = self.fusion(feats)
+
         return x

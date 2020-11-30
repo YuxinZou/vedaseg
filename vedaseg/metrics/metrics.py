@@ -82,9 +82,16 @@ class MultiLabelConfusionMatrix(BaseMetric):
     def compute(self, pred, target):
         mask = (target >= 0) & (target < self.binary)
         for i in range(self.num_classes):
-            pred_index_sub = pred[:, i, :, :]
-            target_sub = target[:, i, :, :]
-            mask_sub = mask[:, i, :, :]
+            # pred_index_sub = pred[:, i, :, :]
+            # target_sub = target[:, i, :, :]
+            # mask_sub = mask[:, i, :, :]
+            # self.current_state[i, :, :] = np.bincount(
+            #     self.binary * target_sub[mask_sub].astype('int') +
+            #     pred_index_sub[mask_sub], minlength=self.binary ** 2
+            # ).reshape(self.binary, self.binary)
+            pred_index_sub = pred[:, i, :]
+            target_sub = target[:, i, :]
+            mask_sub = mask[:, i, :]
             self.current_state[i, :, :] = np.bincount(
                 self.binary * target_sub[mask_sub].astype('int') +
                 pred_index_sub[mask_sub], minlength=self.binary ** 2

@@ -10,6 +10,8 @@ from .registry import UTILS
 
 conv_cfg = {
     'Conv': nn.Conv2d,
+    'Conv1d': nn.Conv1d,
+    'Deconv1d': nn.ConvTranspose1d,
     # TODO: octave conv
 }
 
@@ -212,4 +214,31 @@ class ConvModules(nn.Module):
 
     def forward(self, x):
         feat = self.block(x)
+        return feat
+
+
+@UTILS.register_module
+class Deconv1d(nn.Module):
+    def __init__(self,
+                 in_channels, out_channels, kernel_size, stride=1,
+                 padding=0, output_padding=0, groups=1, bias=True,
+                 dilation=1, padding_mode='zeros',
+                 conv_cfg=dict(type='Deconv1d'),
+                 ):
+        super().__init__()
+
+        self.conv = build_conv_layer(conv_cfg,
+                                     in_channels,
+                                     out_channels,
+                                     kernel_size,
+                                     stride=stride,
+                                     padding=padding,
+                                     output_padding=output_padding,
+                                     dilation=dilation,
+                                     groups=groups,
+                                     bias=bias,
+                                     padding_mode=padding_mode)
+
+    def forward(self, x):
+        feat = self.conv(x)
         return feat

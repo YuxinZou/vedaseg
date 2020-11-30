@@ -11,9 +11,9 @@ class BaseDataset(Dataset):
     def __init__(self, transform=None):
         self.transform = transform
 
-    def process(self, image, masks):
+    def process(self, data):
         if self.transform:
-            augmented = self.transform(image=image, masks=masks)
-            return augmented['image'], augmented['masks']
+            augmented = self.transform(data)
+            return augmented['image'], augmented['mask']
         else:
-            return image, masks
+            return data['image'], data['mask']

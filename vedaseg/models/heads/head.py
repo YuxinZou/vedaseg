@@ -11,11 +11,6 @@ logger = logging.getLogger()
 
 @HEADS.register_module
 class Head(nn.Module):
-    """Head
-
-    Args:
-    """
-
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -54,3 +49,14 @@ class Head(nn.Module):
     def forward(self, x):
         feat = self.block(x)
         return feat
+
+
+@HEADS.register_module
+class PbrHead(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+
+        self.conv = nn.Conv1d(in_channels, out_channels, 1)
+
+    def forward(self, x):
+        return self.conv(x)

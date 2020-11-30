@@ -38,6 +38,7 @@ norm_cfg = {
     'FRN': ('frn', FRN),
     # format: layer_type: (abbreviation, module)
     'BN': ('bn', nn.BatchNorm2d),
+    'BN1d': ('bn1d', nn.BatchNorm1d),
     'SyncBN': ('bn', nn.SyncBatchNorm),
     'GN': ('gn', nn.GroupNorm),
     # and potentially 'SN'

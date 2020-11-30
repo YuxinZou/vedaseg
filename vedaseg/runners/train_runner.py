@@ -67,7 +67,6 @@ class TrainRunner(InferenceRunner):
             if self.use_gpu:
                 image = image.cuda()
                 mask = mask.cuda()
-
             output = self.model(image)
             loss = self.criterion(output, mask)
 
@@ -113,6 +112,10 @@ class TrainRunner(InferenceRunner):
                 if self.use_gpu:
                     image = image.cuda()
                     mask = mask.cuda()
+
+                if len(image.shape) == 6:
+                    image = image.squeeze(0)
+                    mask = mask.squeeze(0)
 
                 output = self.model(image)
                 output = self.compute(output)

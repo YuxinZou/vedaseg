@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 from .registry import ENHANCE_MODULES
 from ...utils.act import build_act_layer
 from ...utils.norm import build_norm_layer

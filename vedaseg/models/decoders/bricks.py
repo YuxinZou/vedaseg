@@ -157,3 +157,49 @@ class CollectBlock(nn.Module):
             return feats[self.from_layer]
         else:
             feats[self.to_layer] = feats[self.from_layer]
+
+
+@BRICKS.register_module
+class FBNetv2(nn.Module):
+    def __init__(self, top='p1', bottle='c_ori',
+                 conv_cfg=dict(type='Conv1d'),
+                 norm_cfg=dict(type='BN1d')):
+        super().__init__()
+        self.top = top
+        self.bottle = bottle
+
+        self.layer1 = nn.Sequential(
+            nn.ConvTranspose1d(in_channels=256,
+                               out_channels=256,
+                               kernel_size=3,
+                               stride=2,
+                               padding=1,
+                               output_padding=1),
+            nn.ConvTranspose1d(in_channels=256,
+                               out_channels=256,
+                               kernel_size=3,
+                               stride=2,
+                               padding=1,
+                               output_padding=1),
+            nn.ConvTranspose1d(in_channels=256,
+                               out_channels=256,
+                               kernel_size=3,
+                               stride=2,
+                               padding=1,
+                               output_padding=1),
+        )
+        self.layer2 = nn.Sequential(
+            nn.Conv3d(3, 64, kernel_size=(3, 3, 3),
+                      stride=(1, 2, 2), padding=1),  nn.ReLU(inplace=True),
+            nn.Conv3d(64, 128, kernel_size=(3, 3, 3),
+                      stride=(1, 2, 2), padding=1), nn.ReLU(inplace=True),
+            nn.Conv3d(128, 256, kernel_size=(3, 3, 3),
+                      stride=(1, 2, 2),padding=1), nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool3d((None, 1, 1)),
+        )
+
+    def forward(self, feats):
+        feat1 = self.layer1(feats[self.top])
+        feat2 = self.layer2(feats[self.bottle])
+        feat2 = feat2.reshape(feat2.shape[:-2])
+        return torch.cat([feat1, feat2], 1)
