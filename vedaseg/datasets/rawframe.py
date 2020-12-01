@@ -9,7 +9,7 @@ from .registry import DATASETS
 
 
 @DATASETS.register_module
-class ActionDataset(BaseDataset):
+class RawFrameDataset(BaseDataset):
     CLASSES = ('BaseballPitch', 'BasketballDunk', 'Billiards', 'CleanAndJerk',
                'CliffDiving', 'CricketBowling', 'CricketShot',
                'Diving', 'FrisbeeCatch', 'GolfSwing', 'HammerThrow',
@@ -21,7 +21,6 @@ class ActionDataset(BaseDataset):
                  ann_file,
                  img_prefix,
                  nclasses=20,
-                 size=(96, 96),
                  fps=10,
                  transform=None,
                  multi_label=True,
@@ -34,7 +33,6 @@ class ActionDataset(BaseDataset):
         self.img_prefix = img_prefix
         self.nclasses = nclasses
         self.fps = fps
-        self.size = size
         self.video_names = list(self.data.keys())
         if self.root is not None:
             self.img_prefix = os.path.join(self.root, self.img_prefix)
@@ -42,10 +40,12 @@ class ActionDataset(BaseDataset):
         self.cap = cv2.VideoCapture()
 
     def __getitem__(self, item):
-        fname = os.path.join(self.img_prefix, self.video_names[item] + '.mp4')
-
+        frame_dir = os.path.join(self.img_prefix, self.video_names[item])
         gt = self.data[self.video_names[item]]
-        duration = int(gt['duration_second'] * self.fps)
+        fnames = sorted(os.listdir(frame_dir))
+        fnames = [os.path.join(frame_dir, img) for img in fnames]
+
+        duration = len(fnames)
         mask = np.zeros((self.nclasses, duration))
         for anno in gt['annotations']:
             segment = [int(i * self.fps) for i in anno['segment']]
@@ -54,7 +54,7 @@ class ActionDataset(BaseDataset):
             mask[index, segment[0]:segment[1]] = 1
 
         # mask shape C*T
-        data = dict(image=fname, duration=duration, mask=mask)
+        data = dict(image=fnames, duration=duration, mask=mask)
         image, mask = self.process(data)
         return image.float(), mask.long()
 

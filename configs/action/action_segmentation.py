@@ -11,7 +11,7 @@ norm_cfg = dict(type='BN1d')
 multi_label = True
 
 inference = dict(
-    gpu_id='0,1',
+    gpu_id='0',
     multi_label=multi_label,
     transforms=[
         dict(type='VideoCrop',
@@ -248,7 +248,7 @@ test = dict(
             type=dataset_type,
             root=dataset_root,
             nclasses=nclasses,
-            img_prefix='val',
+            img_prefix='test',
             ann_file='annotations_thumos14_mini_val.json',
             multi_label=multi_label,
         ),
@@ -273,7 +273,7 @@ test = dict(
 )
 
 ## 2.2 configuration for train
-max_epochs = 200
+max_epochs = 50
 
 train = dict(
     data=dict(
@@ -282,7 +282,7 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='val',
+                img_prefix='test',
                 ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
@@ -291,7 +291,7 @@ train = dict(
                      window_size=256,
                      fps=10,
                      size=(96, 96),
-                     mode='train',
+                     mode='val',
                      value=image_pad_value,
                      mask_value=ignore_label),
                 dict(type='Normalize', **img_norm_cfg),
@@ -314,7 +314,7 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='val',
+                img_prefix='test',
                 ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
@@ -334,7 +334,7 @@ train = dict(
     ),
     resume=None,
     criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label),
-    optimizer=dict(type='SGD', lr=0.04, momentum=0.9, weight_decay=0.0001),
+    optimizer=dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001),
     lr_scheduler=dict(type='PolyLR', max_epochs=max_epochs),
     max_epochs=max_epochs,
     trainval_ratio=50,

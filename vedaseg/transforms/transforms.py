@@ -1,6 +1,7 @@
 import random
 
 import cv2
+import decord
 import torch
 import numpy as np
 import albumentations as albu
@@ -8,6 +9,7 @@ from albumentations import DualTransform
 import albumentations.augmentations.functional as F
 
 from .registry import TRANSFORMS
+
 
 
 @TRANSFORMS.register_module
@@ -19,6 +21,75 @@ class Compose:
         for t in self.transforms:
             data = t(data)
         return data
+
+
+@TRANSFORMS.register_module
+class VideoCropRawFrame:
+    def __init__(self,
+                 window_size=256,
+                 fps=10,
+                 size=(96, 96),
+                 mode='train',
+                 value=(123.675, 116.280, 103.530),
+                 mask_value=255):
+        self.window_size = window_size
+        self.fps = fps
+        self.size = size
+        self.mode = mode
+        self.value = np.reshape(np.array(value), [1, 1, 3])
+        self.mask_value = np.reshape(np.array(mask_value), [1])
+
+        self.interval = int(self.window_size / self.fps)
+        self.frame_interval = 1000 / self.fps
+
+    def gen_image(self, fnames, duration, start_idx):
+        end_idx = min(duration, start_idx+self.window_size)
+        images = []
+
+        for i in range(start_idx, end_idx):
+            img = cv2.imread(fnames[i])
+            img = cv2.resize(img, self.size)
+            images.append(img)
+        images = np.array(images)
+
+        if images.shape[0] < self.window_size:
+            shape = (self.window_size - images.shape[0],) + self.size + (3,)
+            pad_image = np.zeros(shape) + self.value
+            images = np.concatenate((images, pad_image), axis=0)
+        return images.astype(np.float)
+
+    def gen_mask(self, mask, duration, start_idx):
+        c, _ = mask.shape
+        if start_idx + self.window_size > duration:
+            shape = (c,) + (start_idx + self.window_size - duration,)
+            pad_mask = np.zeros(shape) + self.mask_value
+            mask = np.concatenate((mask, pad_mask), axis=1)
+        mask = mask[:, start_idx:start_idx + self.window_size]
+        return mask
+
+    def __call__(self, data):
+        image = data['image']
+        mask = data['mask']
+        duration = len(image)
+        if self.mode == 'train':
+            sample_position = int(max(0, duration - self.window_size))
+            start_idx = 0 if sample_position == 0 else random.randint(
+                0, sample_position)
+            # start_idx = 0
+            image = self.gen_image(image, duration, start_idx)
+            mask = self.gen_mask(mask, duration, start_idx)
+        else:
+            images, masks = [], []
+            num_clips = int(np.ceil(duration/self.window_size))
+            index = [i * self.window_size for i in range(num_clips)]
+            for inx in index:
+                images.append(self.gen_image(image, duration, inx))
+                masks.append(self.gen_mask(mask, duration, inx))
+            image = np.array(images)
+            mask = np.array(masks)
+        return dict(image=image, mask=mask)
+
+
 
 
 @TRANSFORMS.register_module
@@ -77,12 +148,12 @@ class VideoCrop:
         mask = data['mask']
         duration = data['duration']
         if self.mode == 'train':
-            sample_position = int(max(0, duration - self.window_size))
-            start_idx = 0 if sample_position == 0 else random.randint(
-                0, sample_position)
+            # sample_position = int(max(0, duration - self.window_size))
+            # start_idx = 0 if sample_position == 0 else random.randint(
+            #     0, sample_position)
+            start_idx = 0
             image = self.gen_image(image, start_idx)
             mask = self.gen_mask(mask, start_idx)
-            print(np.sum(mask))
         else:
             images, masks = [], []
             num_clips = int(np.ceil(duration/self.window_size))

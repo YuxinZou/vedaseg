@@ -1,6 +1,7 @@
 import os
 
 import cv2
+import decord
 import numpy as np
 import json
 
@@ -9,7 +10,7 @@ from .registry import DATASETS
 
 
 @DATASETS.register_module
-class ActionDataset(BaseDataset):
+class ActionDecordDataset(BaseDataset):
     CLASSES = ('BaseballPitch', 'BasketballDunk', 'Billiards', 'CleanAndJerk',
                'CliffDiving', 'CricketBowling', 'CricketShot',
                'Diving', 'FrisbeeCatch', 'GolfSwing', 'HammerThrow',
@@ -39,13 +40,22 @@ class ActionDataset(BaseDataset):
         if self.root is not None:
             self.img_prefix = os.path.join(self.root, self.img_prefix)
 
-        self.cap = cv2.VideoCapture()
-
     def __getitem__(self, item):
         fname = os.path.join(self.img_prefix, self.video_names[item] + '.mp4')
 
         gt = self.data[self.video_names[item]]
+        vr = decord.VideoReader(fname, width=self.size[1], height=self.size[0])
+        # fps = vr.get_avg_fps()
+        total_frame = len(vr)
+
         duration = int(gt['duration_second'] * self.fps)
+        samples = [i for i in range(duration)]
+
+        samples = np.interp(samples, [0, duration], [0, total_frame]).astype(
+            np.int)
+
+        frames = vr.get_batch(samples)
+
         mask = np.zeros((self.nclasses, duration))
         for anno in gt['annotations']:
             segment = [int(i * self.fps) for i in anno['segment']]
@@ -54,7 +64,7 @@ class ActionDataset(BaseDataset):
             mask[index, segment[0]:segment[1]] = 1
 
         # mask shape C*T
-        data = dict(image=fname, duration=duration, mask=mask)
+        data = dict(image=frames, mask=mask)
         image, mask = self.process(data)
         return image.float(), mask.long()
 
