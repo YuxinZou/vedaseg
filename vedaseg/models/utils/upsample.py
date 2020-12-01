@@ -41,3 +41,25 @@ class Upsample(nn.Module):
             info += ', scale_bias=' + str(self.scale_bias)
         info += ', mode=' + self.mode
         return info
+
+
+@UTILS.register_module
+class Upsample1d(nn.Module):
+    __constants__ = ['size', 'scale_factor', 'scale_bias', 'mode',
+                     'align_corners', 'name']
+
+    def __init__(self, size=None, scale_factor=None, scale_bias=0,
+                 mode='nearest', align_corners=None):
+        super(Upsample1d, self).__init__()
+        self.size = size
+        self.scale_factor = scale_factor
+        self.scale_bias = scale_bias
+        self.mode = mode
+        self.align_corners = align_corners
+
+        assert (self.size is None) ^ (self.scale_factor is None)
+
+        self.upsample = nn.Upsample(scale_factor=scale_factor, mode=mode, align_corners=align_corners)
+
+    def forward(self, x):
+        return self.upsample(x)

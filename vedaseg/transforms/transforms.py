@@ -26,12 +26,14 @@ class VideoCrop:
     def __init__(self,
                  window_size=256,
                  fps=10,
+                 resize=False,
                  size=(96, 96),
                  mode='train',
                  value=(123.675, 116.280, 103.530),
                  mask_value=255):
         self.window_size = window_size
         self.fps = fps
+        self.resize = resize
         self.size = size
         self.mode = mode
         self.value = np.reshape(np.array(value), [1, 1, 3])
@@ -51,14 +53,19 @@ class VideoCrop:
             self.cap.set(propId=cv2.CAP_PROP_POS_MSEC, value=msec)
             ret, frame = self.cap.read()
             if ret:
-                frame = cv2.resize(frame, self.size)
+                if self.resize:
+                    print('resize!!!')
+                    frame = cv2.resize(frame, self.size)
+
+                # cv2.imwrite(f'img/{msec}.jpg', frame)
                 images.append(frame)
             else:
                 break
 
         images = np.array(images)
         if images.shape[0] < self.window_size:
-            shape = (self.window_size - images.shape[0],) + self.size + (3,)
+            # shape = (self.window_size - images.shape[0],) + self.size + (3,)
+            shape = (self.window_size - images.shape[0],) + images[0].shape
             pad_image = np.zeros(shape) + self.value
             images = np.concatenate((images, pad_image), axis=0)
         return images.astype(np.float)
@@ -77,9 +84,10 @@ class VideoCrop:
         mask = data['mask']
         duration = data['duration']
         if self.mode == 'train':
-            sample_position = int(max(0, duration - self.window_size))
-            start_idx = 0 if sample_position == 0 else random.randint(
-                0, sample_position)
+            # sample_position = int(max(0, duration - self.window_size))
+            # start_idx = 0 if sample_position == 0 else random.randint(
+            #     0, sample_position)
+            start_idx = 0
             image = self.gen_image(image, start_idx)
             mask = self.gen_mask(mask, start_idx)
             print(np.sum(mask))
@@ -92,6 +100,9 @@ class VideoCrop:
                 masks.append(self.gen_mask(mask, inx))
             image = np.array(images)
             mask = np.array(masks)
+
+        print(image.shape, mask.shape)
+
         return dict(image=image, mask=mask)
 
 

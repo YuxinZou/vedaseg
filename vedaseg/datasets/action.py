@@ -20,11 +20,12 @@ class ActionDataset(BaseDataset):
                  root,
                  ann_file,
                  img_prefix,
-                 nclasses=20,
+                 nclasses=21,
                  size=(96, 96),
                  fps=10,
                  transform=None,
                  multi_label=True,
+                 mask_value=255,
                  ):
         super().__init__()
         self.root = root
@@ -33,6 +34,7 @@ class ActionDataset(BaseDataset):
         self.transform = transform
         self.img_prefix = img_prefix
         self.nclasses = nclasses
+        self.mask_value = mask_value
         self.fps = fps
         self.size = size
         self.video_names = list(self.data.keys())
@@ -52,6 +54,14 @@ class ActionDataset(BaseDataset):
             label = anno['label']
             index = self.CLASSES.index(label)
             mask[index, segment[0]:segment[1]] = 1
+            mask[self.nclasses - 1, segment[0]:segment[1]] = 1
+
+        ignore_mask = np.tile(mask[self.nclasses - 1] == 0, (self.nclasses, 1))
+        ignore_mask[self.nclasses - 1] = False
+        mask[ignore_mask] = self.mask_value
+
+        print((mask[0] == 1).sum(), (mask[20] == 1).sum(), (mask[8] == 1).sum())
+        # print((mask == 1).sum(), (mask == 0).sum())
 
         # mask shape C*T
         data = dict(image=fname, duration=duration, mask=mask)

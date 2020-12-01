@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 20
+nclasses = 21
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -10,15 +10,18 @@ img_norm_cfg = dict(mean=(123.675, 116.280, 103.530),
 norm_cfg = dict(type='BN1d')
 multi_label = True
 
+fps = 10
+window_size = 896
+
 inference = dict(
     gpu_id='0,1',
     multi_label=multi_label,
     transforms=[
         dict(type='VideoCrop',
-             window_size=256,
-             fps=10,
-             size=(96, 96),
-             mode='val',
+             window_size=window_size,
+             fps=fps,
+             # size=(96, 96),
+             mode='train',
              value=image_pad_value,
              mask_value=ignore_label),
         dict(type='Normalize', **img_norm_cfg),
@@ -34,6 +37,8 @@ inference = dict(
                 depth=50,
                 conv_cfg=dict(type='Conv3d'),
                 norm_eval=False,
+                # with_pool2=False,
+                frozen_stages=-1,
                 inflate=(
                     (1, 1, 1), (1, 0, 1, 0), (1, 0, 1, 0, 1, 0), (0, 1, 0)),
                 zero_init_residual=False),
@@ -56,13 +61,10 @@ inference = dict(
                     top_down=dict(
                         from_layer='c5',
                         upsample=dict(
-                            type='Deconv1d',
-                            in_channels=256,
-                            out_channels=256,
-                            kernel_size=3,
-                            stride=2,
-                            padding=1,
-                            output_padding=1,
+                            type='Upsample1d',
+                            scale_factor=2,
+                            mode='linear',
+                            align_corners=True,
                         ),
                     ),
                     lateral=dict(
@@ -95,13 +97,10 @@ inference = dict(
                     top_down=dict(
                         from_layer='p4',
                         upsample=dict(
-                            type='Deconv1d',
-                            in_channels=256,
-                            out_channels=256,
-                            kernel_size=3,
-                            stride=2,
-                            padding=1,
-                            output_padding=1,
+                            type='Upsample1d',
+                            scale_factor=2,
+                            mode='linear',
+                            align_corners=True,
                         ),
                     ),
                     lateral=dict(
@@ -134,13 +133,10 @@ inference = dict(
                     top_down=dict(
                         from_layer='p3',
                         upsample=dict(
-                            type='Deconv1d',
-                            in_channels=256,
-                            out_channels=256,
-                            kernel_size=3,
-                            stride=2,
-                            padding=1,
-                            output_padding=1,
+                            type='Upsample1d',
+                            scale_factor=2,
+                            mode='linear',
+                            align_corners=True,
                         ),
                     ),
                     lateral=dict(
@@ -173,13 +169,10 @@ inference = dict(
                     top_down=dict(
                         from_layer='p2',
                         upsample=dict(
-                            type='Deconv1d',
-                            in_channels=256,
-                            out_channels=256,
-                            kernel_size=3,
-                            stride=2,
-                            padding=1,
-                            output_padding=1,
+                            type='Upsample1d',
+                            scale_factor=2,
+                            mode='linear',
+                            align_corners=True,
                         ),
                     ),
                     lateral=dict(
@@ -248,7 +241,8 @@ test = dict(
             type=dataset_type,
             root=dataset_root,
             nclasses=nclasses,
-            img_prefix='val',
+            fps=fps,
+            img_prefix='resize_val',
             ann_file='annotations_thumos14_mini_val.json',
             multi_label=multi_label,
         ),
@@ -282,15 +276,16 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='val',
+                fps=fps,
+                img_prefix='resize_val',
                 ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
             transforms=[
                 dict(type='VideoCrop',
-                     window_size=256,
-                     fps=10,
-                     size=(96, 96),
+                     window_size=window_size,
+                     fps=fps,
+                     # size=(96, 96),
                      mode='train',
                      value=image_pad_value,
                      mask_value=ignore_label),
@@ -314,7 +309,8 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='val',
+                fps=fps,
+                img_prefix='resize_val',
                 ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
