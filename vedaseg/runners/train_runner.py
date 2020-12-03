@@ -70,6 +70,10 @@ class TrainRunner(InferenceRunner):
             output = self.model(image)
             loss = self.criterion(output, mask)
 
+            # print('neg/pos: ', (mask == 0).sum(), (mask == 1).sum())
+            # for i in range(20):
+            #     print((mask[:, i] == 1).sum())
+
             loss.backward()
             self.optimizer.step()
 

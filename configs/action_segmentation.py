@@ -11,17 +11,17 @@ norm_cfg = dict(type='BN1d')
 multi_label = True
 
 fps = 10
-window_size = 896
+window_size = 256
 
 inference = dict(
     gpu_id='0,1',
     multi_label=multi_label,
     transforms=[
-        dict(type='VideoCrop',
+        dict(type='VideoCropRawFrame',
              window_size=window_size,
              fps=fps,
              # size=(96, 96),
-             mode='train',
+             mode='test',
              value=image_pad_value,
              mask_value=ignore_label),
         dict(type='Normalize', **img_norm_cfg),
@@ -214,7 +214,7 @@ inference = dict(
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'ActionDataset'
+dataset_type = 'RawFrameDataset'
 dataset_root = 'data/thumos14'
 
 common = dict(
@@ -242,8 +242,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resize_val',
-            ann_file='annotations_thumos14_mini_val.json',
+            img_prefix='resized_data_96_160/images/val',
+            ann_file='annotations_thumos14_val.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -277,12 +277,12 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resize_val',
-                ann_file='annotations_thumos14_mini_val.json',
+                img_prefix='resized_data_96_160/images/val',
+                ann_file='annotations_thumos14_val.json',
                 multi_label=multi_label,
             ),
             transforms=[
-                dict(type='VideoCrop',
+                dict(type='VideoCropRawFrame',
                      window_size=window_size,
                      fps=fps,
                      # size=(96, 96),
@@ -297,10 +297,10 @@ train = dict(
             ),
             dataloader=dict(
                 type='DataLoader',
-                samples_per_gpu=1,
-                workers_per_gpu=1,
+                samples_per_gpu=4,
+                workers_per_gpu=2,
                 shuffle=True,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=True,
             ),
         ),
@@ -310,8 +310,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resize_val',
-                ann_file='annotations_thumos14_mini_val.json',
+                img_prefix='resized_data_96_160/images/val',
+                ann_file='annotations_thumos14_val.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],
@@ -329,11 +329,12 @@ train = dict(
         ),
     ),
     resume=None,
-    criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label),
-    optimizer=dict(type='SGD', lr=0.04, momentum=0.9, weight_decay=0.0001),
+    criterion=dict(type='BCEWithLogitsLoss',
+                   ignore_index=ignore_label),
+    optimizer=dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=5e-4),
     lr_scheduler=dict(type='PolyLR', max_epochs=max_epochs),
     max_epochs=max_epochs,
-    trainval_ratio=50,
+    trainval_ratio=1000000,
     log_interval=1,
     snapshot_interval=5,
     save_best=True,

@@ -67,24 +67,16 @@ class InferenceRunner(Common):
 
     def __call__(self, image, masks):
         with torch.no_grad():
+        # self.model.train()
             # image = self.transform(image=image, masks=masks)['image']
-            image = image.unsqueeze(0)
+            # image = image.unsqueeze(0)
 
             if self.use_gpu:
                 image = image.cuda()
 
-            output = self.model(image)
+            output = self.model(image).sigmoid()
 
-            import pdb
-            pdb.set_trace()
-
-            import cv2
-            import numpy as np
-            xx = np.tile(output[0][20].sigmoid().cpu().numpy(), (20, 1))
-
-            cv2.imwrite('out.jpg', (xx * 255).astype(np.int32))
-
-            output = self.compute(output)
+            # output = self.compute(output)
 
             output = output.squeeze().cpu().numpy()
 
