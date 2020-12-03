@@ -25,13 +25,26 @@ class TestRunner(InferenceRunner):
         self.logger.info('Start testing')
         with torch.no_grad():
             for idx, (image, mask) in enumerate(self.test_dataloader):
-                if self.use_gpu:
-                    image = image.cuda()
-                    mask = mask.cuda()
+                if len(image.shape) == 6:
+                    outputs = []
+                    image = image.transpose(0, 1)
+                    mask = mask.squeeze(0)
+                    if self.use_gpu:
+                        mask = mask.cuda()
 
-                if self.tta:
-                    output = self._tta_compute(image)
+                    for i in range(image.shape[0]):
+                        img = image[i]
+                        if self.use_gpu:
+                            img = img.cuda()
+                        output = self.model(img)
+                        output = self.compute(output)
+                        outputs.append(output)
+                    output = torch.cat(outputs, 0)
                 else:
+                    if self.use_gpu:
+                        image = image.cuda()
+                        mask = mask.cuda()
+
                     output = self.model(image)
                     output = self.compute(output)
 
@@ -42,7 +55,6 @@ class TestRunner(InferenceRunner):
                         self.test_dataloader) and self.test_exclude_num > 0:
                     output = output[:-self.test_exclude_num]
                     mask = mask[:-self.test_exclude_num]
-
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())
                 res = self.metric.accumulate()
                 self.logger.info('Test, Iter {}, {}'.format(

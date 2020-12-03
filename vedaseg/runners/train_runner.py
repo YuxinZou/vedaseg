@@ -67,6 +67,9 @@ class TrainRunner(InferenceRunner):
             if self.use_gpu:
                 image = image.cuda()
                 mask = mask.cuda()
+            if len(image.shape) == 6:
+                image = image.squeeze(0)
+                mask = mask.squeeze(0)
             output = self.model(image)
             loss = self.criterion(output, mask)
 
@@ -109,19 +112,32 @@ class TrainRunner(InferenceRunner):
         self.logger.info('Start validating')
         with torch.no_grad():
             for idx, (image, mask) in enumerate(self.val_dataloader):
-                if self.use_gpu:
-                    image = image.cuda()
-                    mask = mask.cuda()
-
                 if len(image.shape) == 6:
-                    image = image.squeeze(0)
+                    outputs = []
+                    image = image.transpose(0, 1)
                     mask = mask.squeeze(0)
+                    if self.use_gpu:
+                        mask = mask.cuda()
 
-                output = self.model(image)
-                output = self.compute(output)
+                    for i in range(image.shape[0]):
+                        img = image[i]
+                        if self.use_gpu:
+                            img = img.cuda()
+                        output = self.model(img)
+                        output = self.compute(output)
+                        outputs.append(output)
+                    output = torch.cat(outputs, 0)
+                else:
+                    if self.use_gpu:
+                        image = image.cuda()
+                        mask = mask.cuda()
+
+                    output = self.model(image)
+                    output = self.compute(output)
 
                 output = gather_tensor(output)
                 mask = gather_tensor(mask)
+
                 if idx + 1 == len(
                         self.val_dataloader) and self.val_exclude_num > 0:
                     output = output[:-self.val_exclude_num]

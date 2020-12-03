@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from ..models import build_model
 from ..utils import load_checkpoint
@@ -67,15 +68,20 @@ class InferenceRunner(Common):
 
     def __call__(self, image, masks):
         with torch.no_grad():
-            image = self.transform(image=image, masks=masks)['image']
-            image = image.unsqueeze(0)
+            # image = self.transform(image=image, masks=masks)['image']
+            if len(image.shape) == 5:
+                image = image.unsqueeze(1)
 
-            if self.use_gpu:
-                image = image.cuda()
+            outputs = []
+            for i in range(image.shape[0]):
 
-            output = self.model(image)
-            output = self.compute(output)
+                img = image[i]
+                if self.use_gpu:
+                    img = img.cuda()
 
-            output = output.squeeze().cpu().numpy()
+                output = self.model(img)
+                output = self.compute(output)
+                output = output.squeeze().cpu().numpy()
+                outputs.append(output)
 
-        return output
+        return np.array(output)
