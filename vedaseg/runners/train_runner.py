@@ -112,6 +112,26 @@ class TrainRunner(InferenceRunner):
         self.logger.info('Start validating')
         with torch.no_grad():
             for idx, (image, mask) in enumerate(self.val_dataloader):
+                # if self.use_gpu:
+                #     image = image.cuda()
+                #     mask = mask.cuda()
+                # output = self.model(image)
+                # output = self.compute(output)
+                #
+                # if len(image.shape) == 6:
+                #     image = image.transpose(0, 1).contiguous()
+                #     mask = mask.transpose(0, 1).contiguous()
+                #
+                #     for i in range(image.shape[0]):
+                #         if self.use_gpu:
+                #             image = image[i].cuda()
+                #             mask = mask[i].cuda()
+                #         output = self.model(image)
+                #         output = self.compute(output)
+                #
+                # output = gather_tensor(output)
+                # mask = gather_tensor(mask)
+                
                 if len(image.shape) == 6:
                     outputs = []
                     image = image.transpose(0, 1)
@@ -135,13 +155,13 @@ class TrainRunner(InferenceRunner):
                     output = self.model(image)
                     output = self.compute(output)
 
-                output = gather_tensor(output)
-                mask = gather_tensor(mask)
+                output, shape_max = gather_tensor(output)
+                mask, shape_max = gather_tensor(mask)
 
                 if idx + 1 == len(
                         self.val_dataloader) and self.val_exclude_num > 0:
-                    output = output[:-self.val_exclude_num]
-                    mask = mask[:-self.val_exclude_num]
+                    output = output[:-self.val_exclude_num * shape_max]
+                    mask = mask[:-self.val_exclude_num * shape_max]
 
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())
                 res = self.metric.accumulate()

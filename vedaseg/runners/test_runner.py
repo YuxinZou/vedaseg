@@ -27,7 +27,7 @@ class TestRunner(InferenceRunner):
             for idx, (image, mask) in enumerate(self.test_dataloader):
                 if len(image.shape) == 6:
                     outputs = []
-                    image = image.transpose(0, 1)
+                    image = image.transpose(0,1)
                     mask = mask.squeeze(0)
                     if self.use_gpu:
                         mask = mask.cuda()
@@ -47,14 +47,13 @@ class TestRunner(InferenceRunner):
 
                     output = self.model(image)
                     output = self.compute(output)
-
-                output = gather_tensor(output)
-                mask = gather_tensor(mask)
-
+                
+                output, shape_max = gather_tensor(output)
+                mask, shape_max = gather_tensor(mask)
                 if idx + 1 == len(
                         self.test_dataloader) and self.test_exclude_num > 0:
-                    output = output[:-self.test_exclude_num]
-                    mask = mask[:-self.test_exclude_num]
+                    output = output[:-self.test_exclude_num * shape_max]
+                    mask = mask[:-self.test_exclude_num * shape_max]
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())
                 res = self.metric.accumulate()
                 self.logger.info('Test, Iter {}, {}'.format(
