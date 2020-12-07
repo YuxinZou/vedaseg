@@ -92,6 +92,7 @@ class MultiLabelConfusionMatrix(BaseMetric):
             pred_index_sub = pred[:, i, :]
             target_sub = target[:, i, :]
             mask_sub = mask[:, i, :]
+            # print(pred_index_sub[mask_sub].max(), target_sub[mask_sub].max(), mask_sub.max())
             self.current_state[i, :, :] = np.bincount(
                 self.binary * target_sub[mask_sub].astype('int') +
                 pred_index_sub[mask_sub], minlength=self.binary ** 2

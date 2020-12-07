@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from ..models import build_model
 from ..utils import load_checkpoint
@@ -45,6 +46,7 @@ class InferenceRunner(Common):
                     model.cuda(),
                     device_ids=[torch.cuda.current_device()],
                     broadcast_buffers=True,
+                    find_unused_parameters=True,
                 )
                 self.logger.info('Using distributed training')
             else:
@@ -67,17 +69,20 @@ class InferenceRunner(Common):
 
     def __call__(self, image, masks):
         with torch.no_grad():
-        # self.model.train()
             # image = self.transform(image=image, masks=masks)['image']
-            # image = image.unsqueeze(0)
+            if len(image.shape) == 5:
+                image = image.unsqueeze(1)
 
-            if self.use_gpu:
-                image = image.cuda()
+            outputs = []
+            for i in range(image.shape[0]):
 
-            output = self.model(image).sigmoid()
+                img = image[i]
+                if self.use_gpu:
+                    img = img.cuda()
 
-            # output = self.compute(output)
+                output = self.model(img)
+                output = self.compute(output)
+                output = output.squeeze().cpu().numpy()
+                outputs.append(output)
 
-            output = output.squeeze().cpu().numpy()
-
-        return output
+        return np.array(output)

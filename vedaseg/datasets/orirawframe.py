@@ -9,12 +9,12 @@ from .registry import DATASETS
 
 
 @DATASETS.register_module
-class RawFrameDataset(BaseDataset):
+class OriRawFrameDataset(BaseDataset):
     CLASSES = ('BaseballPitch', 'BasketballDunk', 'Billiards', 'CleanAndJerk',
                'CliffDiving', 'CricketBowling', 'CricketShot',
                'Diving', 'FrisbeeCatch', 'GolfSwing', 'HammerThrow',
                'HighJump', 'JavelinThrow', 'LongJump', 'PoleVault', 'Shotput',
-               'SoccerPenalty', 'TennisSwing', 'ThrowDiscus', 'VolleyballSpiking')
+               'SoccerPenalty', 'ThrowDiscus', 'VolleyballSpiking')
 
     def __init__(self,
                  root,
@@ -41,52 +41,29 @@ class RawFrameDataset(BaseDataset):
 
         self.cap = cv2.VideoCapture()
 
-
-    def __getitem__(self, idx):
-        """Get training/test data after pipeline.
-
-        Args:
-            idx (int): Index of data.
-
-        Returns:
-            dict: Training/test data (with annotation if `test_mode` is set
-                True).
-        """
-        while True:
-            data = self.prepare(idx)
-            if data is None:
-                idx = self._rand_another(idx)
-                continue
-
-            return data
-
-    def prepare(self, item):
+    def __getitem__(self, item):
         frame_dir = os.path.join(self.img_prefix, self.video_names[item])
         gt = self.data[self.video_names[item]]
         fnames = sorted(os.listdir(frame_dir))
         fnames = [os.path.join(frame_dir, img) for img in fnames]
 
-        labels = []
-        segments = []
-
-        if len(gt['annotations']) == 0:
-            return None
-
+        duration = len(fnames)
+        mask = np.zeros((self.nclasses, duration))
         for anno in gt['annotations']:
-            segments.append([int(i * self.fps) for i in anno['segment']])
-            labels.append(self.CLASSES.index(anno['label']))
+            segment = [int(i * self.fps) for i in anno['segment']]
+            label = anno['label']
+            index = self.CLASSES.index(label)
+            mask[index, segment[0]:segment[1]] = 1
+            mask[self.nclasses - 1, segment[0]:segment[1]] = 1
+
+        ignore_mask = np.tile(mask[self.nclasses - 1] == 0, (self.nclasses, 1))
+        ignore_mask[self.nclasses - 1] = False
+        mask[ignore_mask] = self.mask_value
 
         # mask shape C*T
-        data = dict(image=fnames, duration=len(fnames),
-                    labels=np.array(labels), segments=np.array(segments))
+        data = dict(image=fnames, duration=duration, mask=mask)
         image, mask = self.process(data)
-
         return image.float(), mask.long()
 
     def __len__(self):
         return len(self.video_names)
-
-    def _rand_another(self, idx):
-        """Get another random index from the same group as the given index."""
-        pool = np.where(len(self.video_names))[0]
-        return np.random.choice(pool)

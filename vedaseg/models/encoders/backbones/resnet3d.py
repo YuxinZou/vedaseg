@@ -386,7 +386,7 @@ class ResNet3d(nn.Module):
     def __init__(self,
                  depth,
                  pretrained,
-                 pretrained2d=True,
+                 pretrained2d=False,
                  in_channels=3,
                  num_stages=4,
                  base_channels=64,
@@ -482,7 +482,9 @@ class ResNet3d(nn.Module):
             self.res_layers.append(layer_name)
 
         self.feat_dim = self.block.expansion * self.base_channels * 2 ** (
-                len(self.stage_blocks) - 1)
+            len(self.stage_blocks) - 1)
+
+        self.init_weights()
 
     def make_res_layer(self,
                        block,
@@ -763,7 +765,6 @@ class ResNet3d(nn.Module):
             if self.pretrained2d:
                 # Inflate 2D model into 3D model.
                 self.inflate_weights(logger)
-
             else:
                 # Directly load 3D model.
                 load_checkpoint(

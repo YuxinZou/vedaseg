@@ -33,7 +33,6 @@ class RectBCELoss(nn.Module):
             reduction_override if reduction_override else self.reduction)
 
         weight = cls_score.new_ones(label.shape, dtype=torch.float)
-        weight[label == 1] = 5
 
         mask = (label != self.ignore_index)
 
@@ -47,5 +46,7 @@ class RectBCELoss(nn.Module):
         loss_cls = self.loss_weight * F.binary_cross_entropy_with_logits(
             cls_score[mask], label.float()[mask], weight=weight[mask],
             reduction=reduction)
+
+        loss_cls = loss_cls.sum() / max(1, (label == 1).sum())
 
         return loss_cls

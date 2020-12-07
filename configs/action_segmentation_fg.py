@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses = 1
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -214,11 +214,11 @@ inference = dict(
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'OriRawFrameDataset'
+dataset_type = 'SingleRawFrameDataset'
 dataset_root = 'data/thumos14'
 
 common = dict(
-    seed=1234,
+    seed=0,
     logger=dict(
         handlers=(
             dict(type='StreamHandler', level='INFO'),
@@ -298,7 +298,7 @@ train = dict(
             dataloader=dict(
                 type='DataLoader',
                 samples_per_gpu=4,
-                workers_per_gpu=4,
+                workers_per_gpu=2,
                 shuffle=True,
                 drop_last=False,
                 pin_memory=True,

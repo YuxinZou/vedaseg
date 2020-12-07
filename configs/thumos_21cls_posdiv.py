@@ -214,7 +214,7 @@ inference = dict(
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'OriRawFrameDataset'
+dataset_type = 'RawFrameDataset'
 dataset_root = 'data/thumos14'
 
 common = dict(
@@ -243,7 +243,7 @@ test = dict(
             nclasses=nclasses,
             fps=fps,
             img_prefix='resized_data_96_160/images/test',
-            ann_file='annotations_thumos14_test.json',
+            ann_file='annotations_thumos14_20cls_test.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -278,15 +278,13 @@ train = dict(
                 nclasses=nclasses,
                 fps=fps,
                 img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_val.json',
+                ann_file='annotations_thumos14_20cls_val.json',
                 multi_label=multi_label,
             ),
             transforms=[
-                dict(type='VideoCropRawFrame',
+                dict(type='VideoRandomCropRawFrame',
                      window_size=window_size,
                      fps=fps,
-                     # size=(96, 96),
-                     mode='train',
                      value=image_pad_value,
                      mask_value=ignore_label),
                 dict(type='Normalize', **img_norm_cfg),
@@ -310,8 +308,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_val.json',
+                img_prefix='resized_data_96_160/images/test',
+                ann_file='annotations_thumos14_20cls_test.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],
@@ -329,8 +327,9 @@ train = dict(
         ),
     ),
     resume=None,
-    criterion=dict(type='BCEWithLogitsLoss',
-                   ignore_index=ignore_label),
+    criterion=dict(type='RectBCELoss',
+                   ignore_index=ignore_label,
+                   reduction='none'),
     optimizer=dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=5e-4),
     lr_scheduler=dict(type='PolyLR', max_epochs=max_epochs),
     max_epochs=max_epochs,

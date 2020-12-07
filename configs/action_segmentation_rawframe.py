@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses = 20
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -10,18 +10,15 @@ img_norm_cfg = dict(mean=(123.675, 116.280, 103.530),
 norm_cfg = dict(type='BN1d')
 multi_label = True
 
-fps = 10
-window_size = 256
-
 inference = dict(
-    gpu_id='0,1',
+    gpu_id='0',
     multi_label=multi_label,
     transforms=[
         dict(type='VideoCropRawFrame',
-             window_size=window_size,
-             fps=fps,
-             # size=(96, 96),
-             mode='test',
+             window_size=256,
+             fps=10,
+             size=(96, 96),
+             mode='train',
              value=image_pad_value,
              mask_value=ignore_label),
         dict(type='Normalize', **img_norm_cfg),
@@ -37,8 +34,6 @@ inference = dict(
                 depth=50,
                 conv_cfg=dict(type='Conv3d'),
                 norm_eval=False,
-                # with_pool2=False,
-                frozen_stages=-1,
                 inflate=(
                     (1, 1, 1), (1, 0, 1, 0), (1, 0, 1, 0, 1, 0), (0, 1, 0)),
                 zero_init_residual=False),
@@ -61,10 +56,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='c5',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -97,10 +95,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='p4',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -133,10 +134,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='p3',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -169,10 +173,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='p2',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -214,11 +221,11 @@ inference = dict(
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'OriRawFrameDataset'
+dataset_type = 'RawFrameDataset'
 dataset_root = 'data/thumos14'
 
 common = dict(
-    seed=1234,
+    seed=0,
     logger=dict(
         handlers=(
             dict(type='StreamHandler', level='INFO'),
@@ -241,9 +248,8 @@ test = dict(
             type=dataset_type,
             root=dataset_root,
             nclasses=nclasses,
-            fps=fps,
-            img_prefix='resized_data_96_160/images/test',
-            ann_file='annotations_thumos14_test.json',
+            img_prefix='images/val',
+            ann_file='annotations_thumos14_mini_val.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -267,7 +273,7 @@ test = dict(
 )
 
 ## 2.2 configuration for train
-max_epochs = 200
+max_epochs = 50
 
 train = dict(
     data=dict(
@@ -276,16 +282,15 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_val.json',
+                img_prefix='images/val',
+                ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
             transforms=[
                 dict(type='VideoCropRawFrame',
-                     window_size=window_size,
-                     fps=fps,
-                     # size=(96, 96),
+                     window_size=256,
+                     fps=10,
+                     size=(96, 96),
                      mode='train',
                      value=image_pad_value,
                      mask_value=ignore_label),
@@ -297,10 +302,10 @@ train = dict(
             ),
             dataloader=dict(
                 type='DataLoader',
-                samples_per_gpu=4,
-                workers_per_gpu=4,
+                samples_per_gpu=1,
+                workers_per_gpu=1,
                 shuffle=True,
-                drop_last=False,
+                drop_last=True,
                 pin_memory=True,
             ),
         ),
@@ -309,9 +314,8 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_val.json',
+                img_prefix='images/val',
+                ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],
@@ -329,12 +333,11 @@ train = dict(
         ),
     ),
     resume=None,
-    criterion=dict(type='BCEWithLogitsLoss',
-                   ignore_index=ignore_label),
-    optimizer=dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=5e-4),
+    criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label),
+    optimizer=dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001),
     lr_scheduler=dict(type='PolyLR', max_epochs=max_epochs),
     max_epochs=max_epochs,
-    trainval_ratio=1000000,
+    trainval_ratio=50,
     log_interval=1,
     snapshot_interval=5,
     save_best=True,

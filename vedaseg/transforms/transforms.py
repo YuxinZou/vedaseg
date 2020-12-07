@@ -1,6 +1,7 @@
 import random
 
 import cv2
+import decord
 import torch
 import numpy as np
 import albumentations as albu
@@ -22,28 +23,27 @@ class Compose:
 
 
 @TRANSFORMS.register_module
-class VideoCropRawFrame:
+class VideoRandomCropRawFrame:
     def __init__(self,
+                 nclasses=21,
                  window_size=256,
                  fps=10,
                  resize=False,
                  size=(96, 96),
-                 mode='train',
                  value=(123.675, 116.280, 103.530),
+                 ignore_th=0.2,
                  mask_value=255):
+        self.nclasses = nclasses
         self.window_size = window_size
         self.fps = fps
         self.resize = resize
         self.size = size
-        self.mode = mode
+        self.ignore_th = ignore_th
         self.value = np.reshape(np.array(value), [1, 1, 3])
         self.mask_value = np.reshape(np.array(mask_value), [1])
 
-        self.interval = int(self.window_size / self.fps)
-        self.frame_interval = 1000 / self.fps
-
-    def gen_image(self, fnames, duration, start_idx):
-        end_idx = min(duration, start_idx+self.window_size)
+    def gen_image(self, fnames, duration, start_idx, window_size):
+        end_idx = min(duration, start_idx + window_size)
         images = []
 
         for i in range(start_idx, end_idx):
@@ -53,49 +53,175 @@ class VideoCropRawFrame:
             images.append(img)
         images = np.array(images)
 
-        if images.shape[0] < self.window_size:
-            shape = (self.window_size - images.shape[0],) + images[0].shape
+        if images.shape[0] < window_size:
+            shape = (window_size - images.shape[0],) + images[0].shape
             pad_image = np.zeros(shape) + self.value
             images = np.concatenate((images, pad_image), axis=0)
         return images.astype(np.float)
 
-    def gen_mask(self, mask, duration, start_idx):
+    def gen_mask(self, mask, duration, start_idx, window_size):
         c, _ = mask.shape
-        if start_idx + self.window_size > duration:
-            shape = (c,) + (start_idx + self.window_size - duration,)
+        if start_idx + window_size > duration:
+            shape = (c,) + (start_idx + window_size - duration,)
             pad_mask = np.zeros(shape) + self.mask_value
             mask = np.concatenate((mask, pad_mask), axis=1)
-        mask = mask[:, start_idx:start_idx + self.window_size]
+        mask = mask[:, start_idx:start_idx + window_size]
+        return mask
+
+    def __call__(self, data):
+
+        images = data['image']
+        labels = data['labels']
+        duration = data['duration']
+        segments = data['segments']
+
+        while True:
+
+            sample_position = int(max(0, duration - self.window_size))
+            start_idx = random.randint(0, sample_position)
+
+            patch = np.array([start_idx, start_idx + self.window_size])
+
+            def filter_segments(segments, patch):
+                lens = segments[:, 1] - segments[:, 0]
+
+                x1s = segments[:, 0]
+                x2s = segments[:, 1]
+                x1, x2 = patch
+
+                ss = np.maximum(x1s, x1)
+                es = np.minimum(x2s, x2)
+
+                iofs = np.maximum(0, es - ss) / lens
+                mask = iofs >= self.ignore_th
+                ignore_mask = (iofs < self.ignore_th) * (iofs > 0)
+
+                return mask, ignore_mask
+
+            mask, ignore_mask = filter_segments(segments, patch)
+            if mask.sum() == 0:
+                continue
+
+            ## TODO: decouple following code
+            segment = segments[mask]
+            segment[:, 1] = segment[:, 1].clip(max=patch[1])
+            segment[:, 0] = segment[:, 0].clip(min=patch[0])
+            label = labels[mask]
+
+            mask = np.zeros((self.nclasses, duration))
+            for i in range(len(label)):
+                idx = label[i]
+                seg = segment[i]
+                mask[idx, seg[0]:seg[1]] = 1
+                mask[self.nclasses - 1, seg[0]:seg[1]] = 1
+
+            ignore_mask = np.tile(mask[self.nclasses - 1] == 0, (self.nclasses, 1))
+            ignore_mask[self.nclasses - 1] = False
+            mask[ignore_mask] = self.mask_value[0]
+
+            image = self.gen_image(images, duration, start_idx, self.window_size)
+            mask = self.gen_mask(mask, duration, start_idx, self.window_size)
+
+            return dict(image=image, mask=mask)
+
+
+@TRANSFORMS.register_module
+class VideoCropRawFrame:
+    def __init__(self,
+                 window_size=256,
+                 fps=10,
+                 resize=False,
+                 size=(96, 96),
+                 mode='train',
+                 num_clip=6,
+                 value=(123.675, 116.280, 103.530),
+                 ignore_frame=2,
+                 nclasses=21,
+                 mask_value=255):
+        self.nclasses = nclasses
+        self.window_size = window_size
+        self.fps = fps
+        self.resize = resize
+        self.size = size
+        self.mode = mode
+        self.num_clip = num_clip
+        self.ignore_frame = ignore_frame
+        self.value = np.reshape(np.array(value), [1, 1, 3])
+        self.mask_value = np.reshape(np.array(mask_value), [1])
+
+    def gen_image(self, fnames, duration, start_idx, window_size):
+        end_idx = min(duration, start_idx + window_size)
+        images = []
+
+        for i in range(start_idx, end_idx):
+            img = cv2.imread(fnames[i])
+            if self.resize:
+                img = cv2.resize(img, self.size)
+            images.append(img)
+        images = np.array(images)
+
+        if images.shape[0] < window_size:
+            shape = (window_size - images.shape[0],) + images[0].shape
+            pad_image = np.zeros(shape) + self.value
+            images = np.concatenate((images, pad_image), axis=0)
+        return images.astype(np.float)
+
+    def gen_mask(self, mask, duration, start_idx, window_size):
+        c, _ = mask.shape
+        if start_idx + window_size > duration:
+            shape = (c,) + (start_idx + window_size - duration,)
+            pad_mask = np.zeros(shape) + self.mask_value
+            mask = np.concatenate((mask, pad_mask), axis=1)
+        mask = mask[:, start_idx:start_idx + window_size]
         return mask
 
     def __call__(self, data):
         image = data['image']
-        mask = data['mask']
+        label = data['labels']
+        segment = data['segments']
+        duration = data['duration']
+
+        mask = np.zeros((self.nclasses, duration))
+        for i in range(len(label)):
+            idx = label[i]
+            seg = segment[i]
+            mask[idx, seg[0]:seg[1]] = 1
+            mask[self.nclasses - 1, seg[0]:seg[1]] = 1
+
+        ignore_mask = np.tile(mask[self.nclasses - 1] == 0, (self.nclasses, 1))
+        ignore_mask[self.nclasses - 1] = False
+        mask[ignore_mask] = self.mask_value[0]
+
         duration = len(image)
         if self.mode == 'train':
+            # divs = duration // self.window_size
 
-            divs = duration // self.window_size
+            # start_idx = random.randint(0, divs)
 
-            start_idx = random.randint(0, divs)
+            # if start_idx == divs:
+            #     start_idx = max(0, duration - self.window_size)
+            # else:
+            #     start_idx *= self.window_size
 
-            if start_idx == divs:
-                start_idx = max(0, duration - self.window_size)
-            else:
-                start_idx *= self.window_size
+            sample_position = int(max(0, duration - self.window_size))
+            start_idx = 0 if sample_position == 0 else random.randint(
+                0, sample_position)
 
-            # start_idx = 0
-            # print('start_idx: ', duration, start_idx)
-            image = self.gen_image(image, duration, start_idx)
-            mask = self.gen_mask(mask, duration, start_idx)
+            image = self.gen_image(image, duration, start_idx, self.window_size)
+            mask = self.gen_mask(mask, duration, start_idx, self.window_size)
+
         else:
             images, masks = [], []
-            num_clips = int(np.ceil(duration / self.window_size))
-            index = [i * self.window_size for i in range(num_clips)]
+            clip_len = self.window_size * self.num_clip
+            num_clips = int(np.ceil(duration / clip_len))
+            index = [i * clip_len for i in range(num_clips)]
             for inx in index:
-                images.append(self.gen_image(image, duration, inx))
-                masks.append(self.gen_mask(mask, duration, inx))
+                images.append(self.gen_image(image, duration, inx, clip_len))
+                masks.append(self.gen_mask(mask, duration, inx, clip_len))
             image = np.array(images)
             mask = np.array(masks)
+
+        # print(image.shape, mask.shape)
         return dict(image=image, mask=mask)
 
 
@@ -104,16 +230,16 @@ class VideoCrop:
     def __init__(self,
                  window_size=256,
                  fps=10,
-                 resize=False,
                  size=(96, 96),
                  mode='train',
+                 max_clip=8,
                  value=(123.675, 116.280, 103.530),
                  mask_value=255):
         self.window_size = window_size
         self.fps = fps
-        self.resize = resize
         self.size = size
         self.mode = mode
+        self.max_clip = max_clip
         self.value = np.reshape(np.array(value), [1, 1, 3])
         self.mask_value = np.reshape(np.array(mask_value), [1])
 
@@ -131,19 +257,14 @@ class VideoCrop:
             self.cap.set(propId=cv2.CAP_PROP_POS_MSEC, value=msec)
             ret, frame = self.cap.read()
             if ret:
-                if self.resize:
-                    print('resize!!!')
-                    frame = cv2.resize(frame, self.size)
-
-                # cv2.imwrite(f'img/{msec}.jpg', frame)
+                frame = cv2.resize(frame, self.size)
                 images.append(frame)
             else:
                 break
 
         images = np.array(images)
         if images.shape[0] < self.window_size:
-            # shape = (self.window_size - images.shape[0],) + self.size + (3,)
-            shape = (self.window_size - images.shape[0],) + images[0].shape
+            shape = (self.window_size - images.shape[0],) + self.size + (3,)
             pad_image = np.zeros(shape) + self.value
             images = np.concatenate((images, pad_image), axis=0)
         return images.astype(np.float)
@@ -168,19 +289,15 @@ class VideoCrop:
             start_idx = 0
             image = self.gen_image(image, start_idx)
             mask = self.gen_mask(mask, start_idx)
-            print(np.sum(mask))
         else:
             images, masks = [], []
-            num_clips = int(np.ceil(duration/self.window_size))
+            num_clips = int(np.ceil(duration / self.window_size))
             index = [i * self.window_size for i in range(num_clips)]
             for inx in index:
                 images.append(self.gen_image(image, inx))
                 masks.append(self.gen_mask(mask, inx))
             image = np.array(images)
             mask = np.array(masks)
-
-        print(image.shape, mask.shape)
-
         return dict(image=image, mask=mask)
 
 
@@ -195,7 +312,8 @@ class Normalize:
     def __call__(self, data):
         image = data['image']
         mask = data['mask']
-        mean = np.reshape(np.array(self.mean, dtype=image.dtype), [self.channel])
+        mean = np.reshape(np.array(self.mean, dtype=image.dtype),
+                          [self.channel])
         std = np.reshape(np.array(self.std, dtype=image.dtype), [self.channel])
         denominator = np.reciprocal(std, dtype=image.dtype)
 
