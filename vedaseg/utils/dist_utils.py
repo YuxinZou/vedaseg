@@ -3,6 +3,7 @@
 import os
 
 import torch
+import numpy as np
 import torch.distributed as dist
 
 
@@ -44,19 +45,29 @@ def reduce_tensor(data, average=True):
 
 
 def gather_tensor(data):
-    _, world_size = get_dist_info()
+    rank, world_size = get_dist_info()
     if world_size < 2:
-        return data
+        return data, data.shape[0]
 
     with torch.no_grad():
         if not isinstance(data, torch.Tensor):
             data = torch.tensor(data).cuda()
 
-        gather_list = [torch.ones_like(data) for _ in range(world_size)]
-        dist.all_gather(gather_list, data)
-        gather_data = torch.cat(gather_list, 0)
+        # gather all result part tensor shape
+        shape_tensor = torch.tensor(data.shape).cuda()
+        shape_list = [shape_tensor.clone() for _ in range(world_size)]
+        dist.all_gather(shape_list, shape_tensor)
+        # padding result part tensor to max length
+        max_size_index = np.argmax([size[0] for size in shape_list])
+        shape_max = tuple(shape_list[max_size_index])
+        part_send = torch.ones(shape_max, dtype=data.dtype).cuda() * 255
+        part_send[:shape_tensor[0]] = data
+        data_list = [data.new_zeros(shape_max) for _ in range(world_size)]
+        # gather all result part
+        dist.all_gather(data_list, part_send)
+        gather_data = torch.cat(data_list, 0)
 
-    return gather_data
+    return gather_data, shape_max[0].item()
 
 
 def synchronize():
