@@ -58,7 +58,7 @@ class InferenceRunner(Common):
     def compute(self, output):
         if self.multi_label:
             output = output.sigmoid()
-            output = torch.where(output >= 0.5,
+            output = torch.where(output >= 0.3,
                                  torch.full_like(output, 1),
                                  torch.full_like(output, 0)).long()
 

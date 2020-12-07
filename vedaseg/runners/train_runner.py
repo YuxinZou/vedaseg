@@ -82,8 +82,8 @@ class TrainRunner(InferenceRunner):
             with torch.no_grad():
                 output = self.compute(output)
 
-                output = gather_tensor(output)
-                mask = gather_tensor(mask)
+                output, shape_max = gather_tensor(output)
+                mask, shape_max = gather_tensor(mask)
                 reduced_loss = reduce_tensor(loss.item())
 
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())
@@ -136,13 +136,13 @@ class TrainRunner(InferenceRunner):
                     output = self.model(image)
                     output = self.compute(output)
 
-                output = gather_tensor(output)
-                mask = gather_tensor(mask)
+                output, shape_max = gather_tensor(output)
+                mask, shape_max = gather_tensor(mask)
 
                 if idx + 1 == len(
                         self.val_dataloader) and self.val_exclude_num > 0:
-                    output = output[:-self.val_exclude_num]
-                    mask = mask[:-self.val_exclude_num]
+                    output = output[:-self.val_exclude_num * shape_max]
+                    mask = mask[:-self.val_exclude_num * shape_max]
 
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())
                 res = self.metric.accumulate()
