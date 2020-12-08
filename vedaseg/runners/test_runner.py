@@ -23,6 +23,7 @@ class TestRunner(InferenceRunner):
 
         res = {}
 
+
         self.logger.info('Start testing')
         with torch.no_grad():
             for idx, (image, mask) in enumerate(self.test_dataloader):

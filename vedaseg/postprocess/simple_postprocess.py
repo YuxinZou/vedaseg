@@ -18,19 +18,23 @@ class SimplePostProcess:
         result = []
         start = 0
         idx = 0
-        index = np.where(data == 1)[0]
+        index = np.where(data >= self.threshold)[0]
         if len(index) == 0:
             return []
         for i in range(1, len(index)):
             idx += 1
             if index[i] > index[i - 1] + self.mini_merge:
-                result.append(dict(segment=[float(index[start] / fps),
-                                            float(index[idx-1] / fps)],
-                                   label=label))
+                if idx - 1 - start >= self.mini_len:
+                    score = np.mean(data[index[start]:index[idx - 1]])
+                    result.append(dict(segment=[float(index[start] / fps),
+                                                float(index[idx - 1] / fps)],
+                                       label=label, score=score))
                 start = i
-        result.append(dict(segment=[float(index[start] / fps),
-                                    float(index[idx] / fps)],
-                           label=label))
+        if idx - start >= self.mini_len:
+            score = np.mean(data[index[start]:index[idx]])
+            result.append(dict(segment=[float(index[start] / fps),
+                                        float(index[idx] / fps)],
+                               label=label, score=score))
         return result
 
     def __call__(self, output, mask, classes):
@@ -44,7 +48,6 @@ class SimplePostProcess:
         valid_output = output[:, valid]
         valid_output = valid_output * valid_output[-1]
         valid_output = valid_output[:-1, :]
-        valid_output = np.where(valid_output >= self.threshold, 1, 0)
         for i in range(valid_output.shape[0]):
             res.extend(self.generate_sequence(classes[i], valid_output[i]))
         return res
