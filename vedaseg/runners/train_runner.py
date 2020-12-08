@@ -82,8 +82,8 @@ class TrainRunner(InferenceRunner):
             with torch.no_grad():
                 output = self.compute(output)
 
-                output = gather_tensor(output)
-                mask = gather_tensor(mask)
+                output, shape_max = gather_tensor(output)
+                mask, shape_max = gather_tensor(mask)
                 reduced_loss = reduce_tensor(loss.item())
 
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())

@@ -11,6 +11,7 @@ from ..dataloaders.samplers import build_sampler
 from ..datasets import build_dataset
 from ..transforms import build_transform
 from ..metrics import build_metrics
+from ..postprocess import build_postprocess
 from ..utils import init_dist_pytorch, get_dist_info
 
 
@@ -80,6 +81,9 @@ class Common:
 
     def _build_transform(self, cfg):
         return build_transform(cfg)
+
+    def _build_postprocess(self, cfg):
+        return build_postprocess(cfg)
 
     def _build_dataloader(self, cfg):
         transform = build_transform(cfg['transforms'])

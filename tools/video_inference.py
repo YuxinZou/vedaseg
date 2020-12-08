@@ -20,7 +20,7 @@ CLASSES = ('BaseballPitch', 'BasketballDunk', 'Billiards', 'CleanAndJerk',
            'CliffDiving', 'CricketBowling', 'CricketShot',
            'Diving', 'FrisbeeCatch', 'GolfSwing', 'HammerThrow',
            'HighJump', 'JavelinThrow', 'LongJump', 'PoleVault', 'Shotput',
-           'SoccerPenalty', 'ThrowDiscus', 'VolleyballSpiking')
+           'SoccerPenalty', 'TennisSwing', 'ThrowDiscus', 'VolleyballSpiking')
 
 
 def generate_sequence(idx, data, fps=10):
@@ -35,10 +35,10 @@ def generate_sequence(idx, data, fps=10):
             if start == 0:
                 start = i
             else:
-                result.append(dict(segment=[float(start/fps), float(i/fps)], label=CLASSES[idx]))
+                result.append(dict(segment=[float(start / fps), float(i / fps)],
+                                   label=CLASSES[idx]))
                 start = 0
     return result
-
 
 
 def parse_args():
@@ -70,13 +70,9 @@ def main():
     dataset = build_dataset(cfg.test.data['dataset'], dict(transform=transform))
     print(len(dataset))
     for i in range(len(dataset)):
-
         image, mask = dataset[i]
         # print(dataset[0])
         # print(torch.sum(mask))
-
-        import pdb
-        pdb.set_trace()
 
         output = runner(image, mask)
 
@@ -85,6 +81,8 @@ def main():
 
         output = np.hstack(output)
         mask = np.hstack(mask)
+        print(output.shape)
+        print(mask.shape)
 
         xx = np.tile(output[20], (20, 1))
         d = np.ones((4, len(output[0]))) * 0.5
@@ -93,8 +91,7 @@ def main():
         mm[mm == 255] = 0
         xx = np.concatenate([xx, d, mm])
 
-        cv2.imwrite(f'infer_img/out{i}.jpg', (xx * 255).astype(np.int32))
-
+        cv2.imwrite(f'/home/admin123/PycharmProjects/github/meizhi/vedaseg/tools/infer_img/out{i}.jpg', (xx * 255).astype(np.int32))
 
     # import pdb
     # pdb.set_trace()
@@ -106,6 +103,7 @@ def main():
     #     res.extend(re)
 
     # print(res)
+
 
 if __name__ == '__main__':
     main()

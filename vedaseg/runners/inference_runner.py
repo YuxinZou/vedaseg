@@ -23,6 +23,9 @@ class InferenceRunner(Common):
         self.model = self._build_model(inference_cfg['model'])
         self.model.eval()
 
+        # build postprocess
+        self.postprocess = self._build_postprocess(inference_cfg['postprocess']) if inference_cfg.get('postprocess') else None
+
     def load_checkpoint(self, filename, map_location='default', strict=True):
         self.logger.info('Load checkpoint from {}'.format(filename))
 
@@ -85,4 +88,4 @@ class InferenceRunner(Common):
                 output = output.squeeze().cpu().numpy()
                 outputs.append(output)
 
-        return np.array(output)
+        return np.array(outputs)

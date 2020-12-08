@@ -21,6 +21,7 @@ inference = dict(
              window_size=window_size,
              fps=fps,
              # size=(96, 96),
+             resize=True,
              mode='test',
              value=image_pad_value,
              mask_value=ignore_label),
@@ -210,7 +211,8 @@ inference = dict(
             in_channels=512,
             out_channels=nclasses,
         )
-    )
+    ),
+    postprocess=dict(type='SimplePostProcess', threshold=0.5, mini_merge=2, ignore_label=ignore_label)
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
@@ -242,8 +244,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/test',
-            ann_file='annotations_thumos14_20cls_test.json',
+            img_prefix='images/val',
+            ann_file='annotations_thumos14_mini_val.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -277,8 +279,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_20cls_val.json',
+                img_prefix='images/val',
+                ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
             transforms=[
@@ -295,8 +297,8 @@ train = dict(
             ),
             dataloader=dict(
                 type='DataLoader',
-                samples_per_gpu=4,
-                workers_per_gpu=4,
+                samples_per_gpu=1,
+                workers_per_gpu=1,
                 shuffle=True,
                 drop_last=False,
                 pin_memory=True,
@@ -308,8 +310,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/test',
-                ann_file='annotations_thumos14_20cls_test.json',
+                img_prefix='images/val',
+                ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],

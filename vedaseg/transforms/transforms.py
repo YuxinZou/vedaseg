@@ -28,7 +28,7 @@ class VideoRandomCropRawFrame:
                  nclasses=21,
                  window_size=256,
                  fps=10,
-                 resize=False,
+                 resize=True,
                  size=(96, 96),
                  value=(123.675, 116.280, 103.530),
                  ignore_th=0.2,
@@ -121,7 +121,6 @@ class VideoRandomCropRawFrame:
 
             image = self.gen_image(images, duration, start_idx, self.window_size)
             mask = self.gen_mask(mask, duration, start_idx, self.window_size)
-
             return dict(image=image, mask=mask)
 
 
@@ -221,7 +220,6 @@ class VideoCropRawFrame:
             image = np.array(images)
             mask = np.array(masks)
 
-        # print(image.shape, mask.shape)
         return dict(image=image, mask=mask)
 
 

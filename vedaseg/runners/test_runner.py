@@ -15,6 +15,7 @@ class TestRunner(InferenceRunner):
         self.test_exclude_num = self.world_size - extra_data if extra_data != 0 else 0
 
         self.tta = test_cfg.get('tta', False)
+        self.CLASSES = self.test_dataloader.dataset.CLASSES
 
     def __call__(self):
         self.metric.reset()
@@ -37,7 +38,6 @@ class TestRunner(InferenceRunner):
                         if self.use_gpu:
                             img = img.cuda()
                         output = self.model(img)
-                        output = self.compute(output)
                         outputs.append(output)
                     output = torch.cat(outputs, 0)
                 else:
@@ -46,10 +46,12 @@ class TestRunner(InferenceRunner):
                         mask = mask.cuda()
 
                     output = self.model(image)
-                    output = self.compute(output)
 
+                pred = self.postprocess(output, mask, self.CLASSES)
+                output = self.compute(output)
                 output, shape_max = gather_tensor(output)
                 mask, shape_max = gather_tensor(mask)
+
 
                 if idx + 1 == len(
                         self.test_dataloader) and self.test_exclude_num > 0:
