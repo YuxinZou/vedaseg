@@ -14,7 +14,8 @@ class RawFrameDataset(BaseDataset):
                'CliffDiving', 'CricketBowling', 'CricketShot',
                'Diving', 'FrisbeeCatch', 'GolfSwing', 'HammerThrow',
                'HighJump', 'JavelinThrow', 'LongJump', 'PoleVault', 'Shotput',
-               'SoccerPenalty', 'TennisSwing', 'ThrowDiscus', 'VolleyballSpiking')
+               'SoccerPenalty', 'TennisSwing', 'ThrowDiscus',
+               'VolleyballSpiking')
 
     def __init__(self,
                  root,
@@ -40,7 +41,6 @@ class RawFrameDataset(BaseDataset):
             self.img_prefix = os.path.join(self.root, self.img_prefix)
 
         self.cap = cv2.VideoCapture()
-
 
     def __getitem__(self, idx):
         """Get training/test data after pipeline.
@@ -81,7 +81,7 @@ class RawFrameDataset(BaseDataset):
                     labels=np.array(labels), segments=np.array(segments))
         image, mask = self.process(data)
 
-        return image.float(), mask.long()
+        return image.float(), mask.long(), self.video_names[item]
 
     def __len__(self):
         return len(self.video_names)
@@ -90,3 +90,21 @@ class RawFrameDataset(BaseDataset):
         """Get another random index from the same group as the given index."""
         pool = np.where(len(self.video_names))[0]
         return np.random.choice(pool)
+
+    def get_all_gts(self):
+        """Fetch groundtruth instances of the entire dataset."""
+        gts = {}
+        for video_info, anno in self.data.items():
+            video = video_info
+            # frame_dir = os.path.join(self.img_prefix, video_info)
+            # total_frames = len(os.listdir(frame_dir))
+            for gt in anno["annotations"]:
+                class_idx = self.CLASSES.index(gt['label'])
+                gt_info = [
+                    gt['segment'][0] / anno['duration_second'],
+                    gt['segment'][1] / anno['duration_second']
+                ]
+                gts.setdefault(class_idx, {}).setdefault(video,
+                                                         []).append(gt_info)
+
+        return gts

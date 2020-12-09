@@ -14,7 +14,8 @@ class SimplePostProcess:
         self.ignore_label = ignore_label
         self.fps = fps
 
-    def generate_sequence(self, label, data, fps=10):
+    def generate_sequence(self, label, data):
+        total_frames = len(data)
         result = []
         start = 0
         idx = 0
@@ -26,18 +27,18 @@ class SimplePostProcess:
             if index[i] > index[i - 1] + self.mini_merge:
                 if idx - 1 - start >= self.mini_len:
                     score = np.mean(data[index[start]:index[idx - 1]])
-                    result.append(dict(segment=[float(index[start] / fps),
-                                                float(index[idx - 1] / fps)],
+                    result.append(dict(segment=[float(index[start] / total_frames),
+                                                float(index[idx - 1] / total_frames)],
                                        label=label, score=score))
                 start = i
         if idx - start >= self.mini_len:
             score = np.mean(data[index[start]:index[idx]])
-            result.append(dict(segment=[float(index[start] / fps),
-                                        float(index[idx] / fps)],
+            result.append(dict(segment=[float(index[start] / total_frames),
+                                        float(index[idx] / total_frames)],
                                label=label, score=score))
         return result
 
-    def __call__(self, output, mask, classes):
+    def __call__(self, output, mask):
         res = []
         output = output.sigmoid()
         output = output.cpu().numpy()
@@ -49,5 +50,5 @@ class SimplePostProcess:
         valid_output = valid_output * valid_output[-1]
         valid_output = valid_output[:-1, :]
         for i in range(valid_output.shape[0]):
-            res.extend(self.generate_sequence(classes[i], valid_output[i]))
+            res.extend(self.generate_sequence(i, valid_output[i]))
         return res

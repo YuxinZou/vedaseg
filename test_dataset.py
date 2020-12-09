@@ -15,16 +15,14 @@ import numpy as np
 np.random.seed(0)
 random.seed(0)
 def main():
-    cfg_path = '/home/admin123/PycharmProjects/github/meizhi/vedaseg/configs/action_segmentation.py'
+    cfg_path = '/home/admin123/PycharmProjects/github/meizhi/vedaseg/configs/thumos_21cls_randomcrop_ignore.py'
     cfg = Config.fromfile(cfg_path)
     cfg = cfg.test.data
     print(cfg)
     transform = build_transform(cfg['transforms'])
-    print(transform)
     dataset = build_dataset(cfg['dataset'], dict(transform=transform))
-    image, mask = dataset[0]
-    print(image.shape)
-    print(mask.shape)
+    print(dataset[0])
+    print(dataset.get_all_gts())
 
 if __name__ == '__main__':
     main()

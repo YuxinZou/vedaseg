@@ -1,9 +1,12 @@
+import json
+import random
 import torch
 import numpy as np
 import torch.nn.functional as F
 
 from .inference_runner import InferenceRunner
 from ..utils import gather_tensor
+from ..metrics import eval_ap
 
 
 class TestRunner(InferenceRunner):
@@ -17,16 +20,18 @@ class TestRunner(InferenceRunner):
         self.tta = test_cfg.get('tta', False)
         self.CLASSES = self.test_dataloader.dataset.CLASSES
 
+        self.all_gts = self.test_dataloader.dataset.get_all_gts()
+
     def __call__(self):
         self.metric.reset()
         self.model.eval()
 
         res = {}
-
+        prediction = {}
 
         self.logger.info('Start testing')
         with torch.no_grad():
-            for idx, (image, mask) in enumerate(self.test_dataloader):
+            for idx, (image, mask, fname) in enumerate(self.test_dataloader):
                 if len(image.shape) == 6:
                     outputs = []
                     image = image.transpose(0, 1)
@@ -48,11 +53,11 @@ class TestRunner(InferenceRunner):
 
                     output = self.model(image)
 
-                pred = self.postprocess(output, mask, self.CLASSES)
+                pred = self.postprocess(output, mask)
+                prediction.update({fname[0]: pred})
                 output = self.compute(output)
                 output, shape_max = gather_tensor(output)
                 mask, shape_max = gather_tensor(mask)
-
 
                 if idx + 1 == len(
                         self.test_dataloader) and self.test_exclude_num > 0:
@@ -66,8 +71,40 @@ class TestRunner(InferenceRunner):
                                res.items()])))
         self.logger.info('Test Result: {}'.format(', '.join(
             ['{}: {}'.format(k, np.round(v, 4)) for k, v in res.items()])))
-
+        # self.save_prediction('./result.json', prediction)
+        plain_detections = self.get_predictions(prediction)
+        self.evaluate(plain_detections)
         return res
+
+    def save_prediction(self, save_path, predition):
+        with open(save_path, 'w') as pf:
+            json.dump(predition, pf, indent=4)
+
+    def gt2pred(self):
+        gt = self.all_gts
+        num_classes = len(self.CLASSES)
+        plain_detections = {}
+        for class_idx in range(num_classes):
+            detection_list = []
+            for cls, anno in gt.items():
+                if cls == class_idx:
+                    for k, v in anno.items():
+                        x = [[k, cls] + det + [random.random()] for det in v]
+                        detection_list.extend(x)
+                plain_detections[class_idx] = detection_list
+        return plain_detections
+
+    def get_predictions(self, result):
+        num_classes = len(self.CLASSES)
+        plain_detections = {}
+        for class_idx in range(num_classes):
+            detection_list = []
+            for video, dets in result.items():
+                x = [[video, class_idx] + det['segment'] + [det['score']] for
+                     det in dets if det['label'] == class_idx]
+                detection_list.extend(x)
+            plain_detections[class_idx] = detection_list
+        return plain_detections
 
     def _tta_compute(self, image):
         b, c, h, w = image.size()
@@ -94,3 +131,23 @@ class TestRunner(InferenceRunner):
             prob = torch.stack(probs, dim=0).softmax(dim=2).mean(dim=0)
             _, prob = torch.max(prob, dim=1)  # b h w
         return prob
+
+    def evaluate(self, plain_detections):
+        # get gts
+        all_gts = self.all_gts
+        for class_idx in range(len(self.CLASSES)):
+            if class_idx not in all_gts:
+                all_gts[class_idx] = dict()
+
+        eval_results = {}
+        # plain = self.gt2pred()
+        iou_range = np.arange(0.1, 1.0, .1)
+        ap_values = eval_ap(plain_detections, all_gts, iou_range)
+        print(ap_values)
+        map_ious = ap_values.mean(axis=0)
+        self.logger.info('Evaluation finished')
+
+        for iou, map_iou in zip(iou_range, map_ious):
+            eval_results[f'mAP@{iou:.02f}'] = map_iou
+        print(eval_results)
+        return eval_results
