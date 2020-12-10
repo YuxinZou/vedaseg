@@ -7,7 +7,7 @@ image_pad_value = (123.675, 116.280, 103.530)
 
 img_norm_cfg = dict(mean=(123.675, 116.280, 103.530),
                     std=(58.395, 57.120, 57.375))
-norm_cfg = dict(type='BN1d')
+norm_cfg = None
 multi_label = True
 
 fps = 10
@@ -241,8 +241,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/val',
-            ann_file='annotations_thumos14_20cls_val.json',
+            img_prefix='resized_data_96_160/images/test',
+            ann_file='annotations_thumos14_20cls_test.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],

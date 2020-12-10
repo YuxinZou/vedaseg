@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses = 201
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -10,7 +10,7 @@ img_norm_cfg = dict(mean=(123.675, 116.280, 103.530),
 norm_cfg = dict(type='BN1d')
 multi_label = True
 
-fps = 10
+fps = 3
 window_size = 256
 
 inference = dict(
@@ -20,6 +20,7 @@ inference = dict(
         dict(type='VideoCropRawFrame',
              window_size=window_size,
              fps=fps,
+             nclasses=nclasses,
              # size=(96, 96),
              mode='test',
              value=image_pad_value,
@@ -35,9 +36,9 @@ inference = dict(
                 pretrained='/DATA/home/yanjiazhu/.cache/torch/checkpoints/i3d.pth',
                 depth=50,
                 conv_cfg=dict(type='Conv3d'),
-                norm_eval=True,
+                norm_eval=False,
                 # with_pool2=False,
-                frozen_stages=3,
+                frozen_stages=-1,
                 inflate=(
                     (1, 1, 1), (1, 0, 1, 0), (1, 0, 1, 0, 1, 0), (0, 1, 0)),
                 zero_init_residual=False),
@@ -213,8 +214,8 @@ inference = dict(
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'RawFrameDataset'
-dataset_root = 'data/ssd_thumos14'
+dataset_type = 'ActivityRawFrameDataset'
+dataset_root = 'data/activity'
 
 common = dict(
     seed=1234,
@@ -241,8 +242,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/val',
-            ann_file='annotations_thumos14_20cls_val.json',
+            img_prefix='data/imgs',
+            ann_file='anet_anno_val.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -266,7 +267,7 @@ test = dict(
 )
 
 ## 2.2 configuration for train
-max_epochs = 100
+max_epochs = 120
 
 train = dict(
     data=dict(
@@ -276,13 +277,14 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_20cls_val.json',
+                img_prefix='data/imgs',
+                ann_file='anet_anno_train.json',
                 multi_label=multi_label,
             ),
             transforms=[
                 dict(type='VideoRandomCropRawFrame',
                      window_size=window_size,
+                     nclasses=nclasses,
                      fps=fps,
                      value=image_pad_value,
                      mask_value=ignore_label),
@@ -307,8 +309,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/test',
-                ann_file='annotations_thumos14_20cls_test.json',
+                img_prefix='data/imgs',
+                ann_file='anet_anno_val.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],
@@ -326,13 +328,16 @@ train = dict(
         ),
     ),
     resume=None,
-    criterion=dict(type='BCEWithLogitsLoss',
+    criterion=dict(type='FocalLoss',
                    ignore_index=ignore_label),
     optimizer=dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=5e-4),
-    lr_scheduler=dict(type='PolyLR', max_epochs=max_epochs),
+    lr_scheduler=dict(
+        type='RestartPolyLR',
+        periods=[12] * 10,
+        restart_weights=[1] * 10),
     max_epochs=max_epochs,
     trainval_ratio=1000000,
-    log_interval=1,
-    snapshot_interval=5,
+    log_interval=50,
+    snapshot_interval=1,
     save_best=True,
 )

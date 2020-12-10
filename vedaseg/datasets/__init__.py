@@ -5,3 +5,5 @@ from .action import ActionDataset
 from .rawframe import RawFrameDataset
 from .orirawframe import OriRawFrameDataset
 from .singlerawframe import SingleRawFrameDataset
+from .activityrawframe import ActivityRawFrameDataset
+from .cctvrawframe import CCTVRawFrameDataset

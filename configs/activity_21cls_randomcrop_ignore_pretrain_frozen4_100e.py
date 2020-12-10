@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses = 201
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -213,8 +213,8 @@ inference = dict(
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'RawFrameDataset'
-dataset_root = 'data/ssd_thumos14'
+dataset_type = 'ActivityRawFrameDataset'
+dataset_root = 'data/activity'
 
 common = dict(
     seed=1234,
@@ -241,8 +241,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/val',
-            ann_file='annotations_thumos14_20cls_val.json',
+            img_prefix='data/imgs',
+            ann_file='anet_anno_val.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -276,8 +276,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_20cls_val.json',
+                img_prefix='data/imgs',
+                ann_file='anet_anno_train.json',
                 multi_label=multi_label,
             ),
             transforms=[
@@ -307,8 +307,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/test',
-                ann_file='annotations_thumos14_20cls_test.json',
+                img_prefix='data/imgs',
+                ann_file='anet_anno_val.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],

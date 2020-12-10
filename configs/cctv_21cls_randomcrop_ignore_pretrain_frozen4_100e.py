@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses = 13
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -213,8 +213,8 @@ inference = dict(
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'RawFrameDataset'
-dataset_root = 'data/ssd_thumos14'
+dataset_type = 'CCTVRawFrameDataset'
+dataset_root = 'data/cctv'
 
 common = dict(
     seed=1234,
@@ -241,8 +241,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/val',
-            ann_file='annotations_thumos14_20cls_val.json',
+            img_prefix='data/imgs',
+            ann_file='cctv_action_detection_11_27.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -276,13 +276,14 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_20cls_val.json',
+                img_prefix='data/imgs',
+                ann_file='cctv_action_detection_11_27.json',
                 multi_label=multi_label,
             ),
             transforms=[
                 dict(type='VideoRandomCropRawFrame',
                      window_size=window_size,
+                     nclasses=nclasses,
                      fps=fps,
                      value=image_pad_value,
                      mask_value=ignore_label),
@@ -307,8 +308,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/test',
-                ann_file='annotations_thumos14_20cls_test.json',
+                img_prefix='data/imgs',
+                ann_file='cctv_action_detection_11_27.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],
