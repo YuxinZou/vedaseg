@@ -1,4 +1,5 @@
 import json
+import pickle
 import random
 import torch
 import numpy as np
@@ -28,6 +29,7 @@ class TestRunner(InferenceRunner):
 
         res = {}
         prediction = {}
+        model_output = {}
 
         self.logger.info('Start testing')
         with torch.no_grad():
@@ -53,7 +55,9 @@ class TestRunner(InferenceRunner):
 
                     output = self.model(image)
 
-                pred = self.postprocess(output, mask)
+                
+                pred, valid_output = self.postprocess(output, mask)
+                model_output.update({fname[0]: valid_output})
                 prediction.update({fname[0]: pred})
                 output = self.compute(output)
                 output, shape_max = gather_tensor(output)
@@ -71,14 +75,15 @@ class TestRunner(InferenceRunner):
                                res.items()])))
         self.logger.info('Test Result: {}'.format(', '.join(
             ['{}: {}'.format(k, np.round(v, 4)) for k, v in res.items()])))
-        # self.save_prediction('./result.json', prediction)
+        
+        self.save_prediction(model_output)
         plain_detections = self.get_predictions(prediction)
         self.evaluate(plain_detections)
         return res
 
-    def save_prediction(self, save_path, predition):
-        with open(save_path, 'w') as pf:
-            json.dump(predition, pf, indent=4)
+    def save_prediction(self, predition):
+        with open(self.pickle_save, 'wb') as pf:
+            pickle.dump(predition, pf)
 
     def gt2pred(self):
         gt = self.all_gts

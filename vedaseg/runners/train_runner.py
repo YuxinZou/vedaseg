@@ -62,7 +62,7 @@ class TrainRunner(InferenceRunner):
         self.model.train()
 
         self.logger.info('Epoch {}, start training'.format(self.epoch + 1))
-        for idx, (image, mask) in enumerate(self.train_dataloader):
+        for idx, (image, mask, fname) in enumerate(self.train_dataloader):
             self.optimizer.zero_grad()
             if self.use_gpu:
                 image = image.cuda()

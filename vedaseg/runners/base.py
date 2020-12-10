@@ -25,7 +25,7 @@ class Common:
 
         self.workdir = cfg.get('workdir')
         self.distribute = cfg.get('distribute', False)
-
+        self.pickle_save = cfg.get('pickle_save', './result.pickle')
         # set gpu devices
         self.use_gpu = self._set_device(cfg.get('gpu_id', ''))
 
