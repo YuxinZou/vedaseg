@@ -20,6 +20,7 @@ inference = dict(
         dict(type='VideoCropRawFrame',
              window_size=window_size,
              fps=fps,
+             nclasses=nclasses,
              # size=(96, 96),
              mode='test',
              value=image_pad_value,
@@ -232,7 +233,7 @@ common = dict(
         dict(type='MultiLabelMIoU', num_classes=nclasses),
     ],
     dist_params=dict(backend='nccl'),
-    pickle_save = './result.pickle'
+    pickle_save = './test_result.pickle'
 )
 
 ## 2.1 configuration for test
@@ -243,8 +244,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='data/train_imgs_11_27',
-            ann_file='cctv_action_detection_11_27.json',
+            img_prefix='data/val_imgs_12_10',
+            ann_file='cctv_action_detection_12_10.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],

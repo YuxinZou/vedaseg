@@ -60,6 +60,7 @@ class TestRunner(InferenceRunner):
                 model_output.update({fname[0]: valid_output})
                 prediction.update({fname[0]: pred})
                 output = self.compute(output)
+                print(output.shape, mask.shape)
                 output, shape_max = gather_tensor(output)
                 mask, shape_max = gather_tensor(mask)
 
@@ -76,7 +77,7 @@ class TestRunner(InferenceRunner):
         self.logger.info('Test Result: {}'.format(', '.join(
             ['{}: {}'.format(k, np.round(v, 4)) for k, v in res.items()])))
         
-        self.save_prediction(model_output)
+        self.save_prediction(prediction)
         plain_detections = self.get_predictions(prediction)
         self.evaluate(plain_detections)
         return res
