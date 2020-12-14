@@ -26,7 +26,6 @@ class TrainRunner(InferenceRunner):
             self.val_exclude_num = self.world_size - extra_data if extra_data != 0 else 0
         else:
             self.val_dataloader = None
-
         self.optimizer = self._build_optimizer(train_cfg['optimizer'])
         self.criterion = self._build_criterion(train_cfg['criterion'])
         self.lr_scheduler = self._build_lr_scheduler(train_cfg['lr_scheduler'])
@@ -62,15 +61,16 @@ class TrainRunner(InferenceRunner):
         self.model.train()
 
         self.logger.info('Epoch {}, start training'.format(self.epoch + 1))
-        for idx, (image, mask, fname) in enumerate(self.train_dataloader):
+        for idx, (image, mask) in enumerate(self.train_dataloader):
             self.optimizer.zero_grad()
             if self.use_gpu:
                 image = image.cuda()
                 mask = mask.cuda()
+            
             if len(image.shape) == 6:
                 image = image.squeeze(0)
                 mask = mask.squeeze(0)
-
+            
             output = self.model(image)
             loss = self.criterion(output, mask)
 
@@ -82,8 +82,8 @@ class TrainRunner(InferenceRunner):
             with torch.no_grad():
                 output = self.compute(output)
 
-                output, shape_max = gather_tensor(output)
-                mask, shape_max = gather_tensor(mask)
+                output = gather_tensor(output)
+                mask = gather_tensor(mask)
                 reduced_loss = reduce_tensor(loss.item())
 
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())
@@ -113,36 +113,23 @@ class TrainRunner(InferenceRunner):
         self.logger.info('Start validating')
         with torch.no_grad():
             for idx, (image, mask) in enumerate(self.val_dataloader):
+                if self.use_gpu:
+                    image = image.cuda()
+                    mask = mask.cuda()
+
                 if len(image.shape) == 6:
-                    outputs = []
-                    image = image.transpose(0, 1)
+                    image = image.squeeze(0)
                     mask = mask.squeeze(0)
-                    if self.use_gpu:
-                        mask = mask.cuda()
 
-                    for i in range(image.shape[0]):
-                        img = image[i]
-                        if self.use_gpu:
-                            img = img.cuda()
-                        output = self.model(img)
-                        output = self.compute(output)
-                        outputs.append(output)
-                    output = torch.cat(outputs, 0)
-                else:
-                    if self.use_gpu:
-                        image = image.cuda()
-                        mask = mask.cuda()
+                output = self.model(image)
+                output = self.compute(output)
 
-                    output = self.model(image)
-                    output = self.compute(output)
-
-                output, shape_max = gather_tensor(output)
-                mask, shape_max = gather_tensor(mask)
-
+                output = gather_tensor(output)
+                mask = gather_tensor(mask)
                 if idx + 1 == len(
                         self.val_dataloader) and self.val_exclude_num > 0:
-                    output = output[:-self.val_exclude_num * shape_max]
-                    mask = mask[:-self.val_exclude_num * shape_max]
+                    output = output[:-self.val_exclude_num]
+                    mask = mask[:-self.val_exclude_num]
 
                 self.metric(output.cpu().numpy(), mask.cpu().numpy())
                 res = self.metric.accumulate()

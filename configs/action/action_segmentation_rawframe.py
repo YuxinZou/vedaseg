@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses = 20
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -18,7 +18,7 @@ inference = dict(
              window_size=256,
              fps=10,
              size=(96, 96),
-             mode='val',
+             mode='train',
              value=image_pad_value,
              mask_value=ignore_label),
         dict(type='Normalize', **img_norm_cfg),
@@ -56,10 +56,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='c5',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -92,10 +95,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='p4',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -128,10 +134,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='p3',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -164,10 +173,13 @@ inference = dict(
                     top_down=dict(
                         from_layer='p2',
                         upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
+                            type='Deconv1d',
+                            in_channels=256,
+                            out_channels=256,
+                            kernel_size=3,
+                            stride=2,
+                            padding=1,
+                            output_padding=1,
                         ),
                     ),
                     lateral=dict(
@@ -236,8 +248,8 @@ test = dict(
             type=dataset_type,
             root=dataset_root,
             nclasses=nclasses,
-            img_prefix='ori_data/images/val',
-            ann_file='annotations_thumos14_val.json',
+            img_prefix='images/val',
+            ann_file='annotations_thumos14_mini_val.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -270,8 +282,8 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='ori_data/images/val',
-                ann_file='annotations_thumos14_val_20.json',
+                img_prefix='images/val',
+                ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
             transforms=[
@@ -290,7 +302,7 @@ train = dict(
             ),
             dataloader=dict(
                 type='DataLoader',
-                samples_per_gpu=5,
+                samples_per_gpu=1,
                 workers_per_gpu=1,
                 shuffle=True,
                 drop_last=True,
@@ -302,8 +314,8 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='ori_data/images/val',
-                ann_file='annotations_thumos14_val_20.json',
+                img_prefix='images/val',
+                ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],
@@ -321,14 +333,11 @@ train = dict(
         ),
     ),
     resume=None,
-    # criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label),
+    criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label),
+    #optimizer =dict(type='Adam', lr=0.001), 
+    #lr_scheduler=dict(type='StepLR', step_size=max_epochs),
     optimizer=dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001),
     lr_scheduler=dict(type='PolyLR', max_epochs=max_epochs),
-    criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label,
-                   reduction='sum'),
-    # optimizer =dict(type='Adam', lr=0.001),
-    # lr_scheduler=dict(type='StepLR', step_size=max_epochs),
-
     max_epochs=max_epochs,
     trainval_ratio=50,
     log_interval=1,

@@ -217,7 +217,7 @@ inference = dict(
 # 2. configuration for train/test
 root_workdir = 'workdir'
 dataset_type = 'RawFrameDataset'
-dataset_root = 'data/thumos14'
+dataset_root = '/home1/thumos14'
 
 common = dict(
     seed=1234,
@@ -244,7 +244,7 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='images/val',
+            img_prefix='resized_data_96_160/images/val',
             ann_file='annotations_thumos14_mini_val.json',
             multi_label=multi_label,
         ),
@@ -279,7 +279,7 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='images/val',
+                img_prefix='resized_data_96_160/images/val',
                 ann_file='annotations_thumos14_mini_val.json',
                 multi_label=multi_label,
             ),

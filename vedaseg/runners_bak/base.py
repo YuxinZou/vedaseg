@@ -11,7 +11,6 @@ from ..dataloaders.samplers import build_sampler
 from ..datasets import build_dataset
 from ..transforms import build_transform
 from ..metrics import build_metrics
-from ..postprocess import build_postprocess
 from ..utils import init_dist_pytorch, get_dist_info
 
 
@@ -25,7 +24,7 @@ class Common:
 
         self.workdir = cfg.get('workdir')
         self.distribute = cfg.get('distribute', False)
-        self.pickle_save = cfg.get('pickle_save', './result.pickle')
+
         # set gpu devices
         self.use_gpu = self._set_device(cfg.get('gpu_id', ''))
 
@@ -55,6 +54,7 @@ class Common:
     def _set_device(self, gpu_id):
         os.environ['CUDA_VISIBLE_DEVICES'] = gpu_id
         self.gpu_num = torch.cuda.device_count()
+        print(self.gpu_num)
         if torch.cuda.is_available():
             use_gpu = True
         else:
@@ -81,9 +81,6 @@ class Common:
 
     def _build_transform(self, cfg):
         return build_transform(cfg)
-
-    def _build_postprocess(self, cfg):
-        return build_postprocess(cfg)
 
     def _build_dataloader(self, cfg):
         transform = build_transform(cfg['transforms'])

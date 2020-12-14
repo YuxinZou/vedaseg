@@ -209,12 +209,13 @@ inference = dict(
             in_channels=512,
             out_channels=nclasses,
         )
-    )
+    ),
+    postprocess=dict(type='SimplePostProcess', threshold=0.3, mini_merge=2, ignore_label=ignore_label)
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
 dataset_type = 'RawFrameDataset'
-dataset_root = 'data/ssd_thumos14'
+dataset_root = '/DATA/data/public/TAD/thumos14/'
 
 common = dict(
     seed=1234,
@@ -231,6 +232,7 @@ common = dict(
         dict(type='MultiLabelMIoU', num_classes=nclasses),
     ],
     dist_params=dict(backend='nccl'),
+    pickle_save = './result.pickle'
 )
 
 ## 2.1 configuration for test

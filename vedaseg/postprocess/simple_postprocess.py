@@ -51,4 +51,4 @@ class SimplePostProcess:
         valid_output = valid_output[:-1, :]
         for i in range(valid_output.shape[0]):
             res.extend(self.generate_sequence(i, valid_output[i]))
-        return res
+        return res, valid_output

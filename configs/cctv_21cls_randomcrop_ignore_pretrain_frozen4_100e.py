@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses =13
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -10,15 +10,19 @@ img_norm_cfg = dict(mean=(123.675, 116.280, 103.530),
 norm_cfg = dict(type='BN1d')
 multi_label = True
 
+fps = 10
+window_size = 256
+
 inference = dict(
-    gpu_id='0',
+    gpu_id='0,1',
     multi_label=multi_label,
     transforms=[
         dict(type='VideoCropRawFrame',
-             window_size=256,
-             fps=10,
-             size=(96, 96),
-             mode='val',
+             window_size=window_size,
+             fps=fps,
+             nclasses=nclasses,
+             # size=(96, 96),
+             mode='test',
              value=image_pad_value,
              mask_value=ignore_label),
         dict(type='Normalize', **img_norm_cfg),
@@ -29,11 +33,12 @@ inference = dict(
         encoder=dict(
             backbone=dict(
                 type='ResNet3d',
-                pretrained2d=True,
-                pretrained='torchvision://resnet50',
+                pretrained='/DATA/home/yanjiazhu/.cache/torch/checkpoints/i3d.pth',
                 depth=50,
                 conv_cfg=dict(type='Conv3d'),
-                norm_eval=False,
+                norm_eval=True,
+                # with_pool2=False,
+                frozen_stages=3,
                 inflate=(
                     (1, 1, 1), (1, 0, 1, 0), (1, 0, 1, 0, 1, 0), (0, 1, 0)),
                 zero_init_residual=False),
@@ -205,15 +210,16 @@ inference = dict(
             in_channels=512,
             out_channels=nclasses,
         )
-    )
+    ),
+    postprocess=dict(type='SimplePostProcess', threshold=0.3, mini_merge=2, ignore_label=ignore_label)
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'RawFrameDataset'
-dataset_root = 'data/thumos14/data'
+dataset_type = 'CCTVRawFrameDataset'
+dataset_root = '/home1/cctv'
 
 common = dict(
-    seed=0,
+    seed=1234,
     logger=dict(
         handlers=(
             dict(type='StreamHandler', level='INFO'),
@@ -227,6 +233,7 @@ common = dict(
         dict(type='MultiLabelMIoU', num_classes=nclasses),
     ],
     dist_params=dict(backend='nccl'),
+    pickle_save = './test_result.pickle'
 )
 
 ## 2.1 configuration for test
@@ -236,8 +243,9 @@ test = dict(
             type=dataset_type,
             root=dataset_root,
             nclasses=nclasses,
-            img_prefix='ori_data/images/val',
-            ann_file='annotations_thumos14_val.json',
+            fps=fps,
+            img_prefix='data/val_imgs_12_10',
+            ann_file='cctv_action_detection_12_10.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -261,7 +269,7 @@ test = dict(
 )
 
 ## 2.2 configuration for train
-max_epochs = 200
+max_epochs = 100
 
 train = dict(
     data=dict(
@@ -270,16 +278,16 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='ori_data/images/val',
-                ann_file='annotations_thumos14_val_20.json',
+                fps=fps,
+                img_prefix='data/train_imgs_11_27',
+                ann_file='cctv_action_detection_11_27.json',
                 multi_label=multi_label,
             ),
             transforms=[
-                dict(type='VideoCropRawFrame',
-                     window_size=256,
-                     fps=10,
-                     size=(96, 96),
-                     mode='train',
+                dict(type='VideoRandomCropRawFrame',
+                     window_size=window_size,
+                     nclasses=nclasses,
+                     fps=fps,
                      value=image_pad_value,
                      mask_value=ignore_label),
                 dict(type='Normalize', **img_norm_cfg),
@@ -290,10 +298,10 @@ train = dict(
             ),
             dataloader=dict(
                 type='DataLoader',
-                samples_per_gpu=5,
-                workers_per_gpu=1,
+                samples_per_gpu=4,
+                workers_per_gpu=4,
                 shuffle=True,
-                drop_last=True,
+                drop_last=False,
                 pin_memory=True,
             ),
         ),
@@ -302,8 +310,9 @@ train = dict(
                 type=dataset_type,
                 root=dataset_root,
                 nclasses=nclasses,
-                img_prefix='ori_data/images/val',
-                ann_file='annotations_thumos14_val_20.json',
+                fps=fps,
+                img_prefix='data/val_imgs_12_10',
+                ann_file='cctv_action_detection_12_10.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],
@@ -321,16 +330,12 @@ train = dict(
         ),
     ),
     resume=None,
-    # criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label),
-    optimizer=dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001),
+    criterion=dict(type='BCEWithLogitsLoss',
+                   ignore_index=ignore_label),
+    optimizer=dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=5e-4),
     lr_scheduler=dict(type='PolyLR', max_epochs=max_epochs),
-    criterion=dict(type='BCEWithLogitsLoss', ignore_index=ignore_label,
-                   reduction='sum'),
-    # optimizer =dict(type='Adam', lr=0.001),
-    # lr_scheduler=dict(type='StepLR', step_size=max_epochs),
-
     max_epochs=max_epochs,
-    trainval_ratio=50,
+    trainval_ratio=1000000,
     log_interval=1,
     snapshot_interval=5,
     save_best=True,

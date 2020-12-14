@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 from ..models import build_model
 from ..utils import load_checkpoint
@@ -22,9 +21,6 @@ class InferenceRunner(Common):
         # build model
         self.model = self._build_model(inference_cfg['model'])
         self.model.eval()
-
-        # build postprocess
-        self.postprocess = self._build_postprocess(inference_cfg['postprocess']) if inference_cfg.get('postprocess') else None
 
     def load_checkpoint(self, filename, map_location='default', strict=True):
         self.logger.info('Load checkpoint from {}'.format(filename))
@@ -49,7 +45,6 @@ class InferenceRunner(Common):
                     model.cuda(),
                     device_ids=[torch.cuda.current_device()],
                     broadcast_buffers=True,
-                    find_unused_parameters=True,
                 )
                 self.logger.info('Using distributed training')
             else:
@@ -61,7 +56,7 @@ class InferenceRunner(Common):
     def compute(self, output):
         if self.multi_label:
             output = output.sigmoid()
-            output = torch.where(output >= 0.3,
+            output = torch.where(output >= 0.5,
                                  torch.full_like(output, 1),
                                  torch.full_like(output, 0)).long()
 
@@ -72,20 +67,15 @@ class InferenceRunner(Common):
 
     def __call__(self, image, masks):
         with torch.no_grad():
-            # image = self.transform(image=image, masks=masks)['image']
-            if len(image.shape) == 5:
-                image = image.unsqueeze(1)
+            image = self.transform(image=image, masks=masks)['image']
+            image = image.unsqueeze(0)
 
-            outputs = []
-            for i in range(image.shape[0]):
+            if self.use_gpu:
+                image = image.cuda()
 
-                img = image[i]
-                if self.use_gpu:
-                    img = img.cuda()
+            output = self.model(image)
+            output = self.compute(output)
 
-                output = self.model(img)
-                output = self.compute(output)
-                output = output.squeeze().cpu().numpy()
-                outputs.append(output)
+            output = output.squeeze().cpu().numpy()
 
-        return np.array(outputs)
+        return output

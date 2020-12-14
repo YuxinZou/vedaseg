@@ -45,6 +45,7 @@ def check_duplicate(name_list, src):
 
 
 if __name__ == '__main__':
+    pass
     # src = "/home/admin123/PycharmProjects/DATA/cctv/12_11/12_11_ori"
     # dst = "/home/admin123/PycharmProjects/DATA/cctv/12_11/cctv_12_11"
     # rename(src, dst)
