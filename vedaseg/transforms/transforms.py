@@ -213,9 +213,9 @@ class VideoRandomCropRawFrame:
                 return mask, ignore_mask
 
             mask, ignore_mask = filter_segments(segments, patch)
+            
             if mask.sum() == 0:
                 continue
-
             ## TODO: decouple following code
             segment = segments[mask]
             segment[:, 1] = segment[:, 1].clip(max=patch[1])
@@ -331,7 +331,7 @@ class VideoCropRawFrame:
 
         else:
             images, masks = [], []
-            clip_len = self.window_size * self.num_clip
+            clip_len = self.window_size#  * self.num_clip
             num_clips = int(np.ceil(duration / clip_len))
             index = [i * clip_len for i in range(num_clips)]
             for inx in index:

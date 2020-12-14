@@ -15,14 +15,13 @@ import numpy as np
 np.random.seed(0)
 random.seed(0)
 def main():
-    cfg_path = '/home/admin123/PycharmProjects/github/meizhi/vedaseg/configs/thumos_21cls_randomcrop_ignore.py'
+    cfg_path = './configs/thumos_21cls_randomcrop_ignore_pretrain_frozen4_100e.py'
     cfg = Config.fromfile(cfg_path)
-    cfg = cfg.test.data
-    print(cfg)
+    cfg = cfg.train.data.train
+    print(cfg['transforms'])
     transform = build_transform(cfg['transforms'])
     dataset = build_dataset(cfg['dataset'], dict(transform=transform))
-    print(dataset[0])
-    print(dataset.get_all_gts())
+    #print(dataset[0])
 
 if __name__ == '__main__':
     main()

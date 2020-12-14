@@ -86,6 +86,7 @@ class CCTVRawFrameDataset(BaseDataset):
         data = dict(image=fnames, duration=len(fnames),
                     labels=np.array(labels), segments=np.array(segments),
                     ignore_segments=np.array(ignore_segments))
+        print(data)
         image, mask = self.process(data)
 
         return image.float(), mask.long(), self.video_names[item]
