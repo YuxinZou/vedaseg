@@ -147,6 +147,43 @@ class Accuracy(ConfusionMatrix):
 
 
 @METRICS.register_module
+class MultiLabelAccuracy(MultiLabelConfusionMatrix):
+    """
+    Calculate accuracy based on confusion matrix for segmentation
+    Args:
+        num_classes (int): number of classes.
+        average (str): {'pixel', 'class'}
+            'pixel':
+                calculate pixel wise average accuracy
+            'class':
+                calculate class wise average accuracy
+    """
+
+    def __init__(self, num_classes, average='pixel'):
+        self.num_classes = num_classes
+        self.average = average
+        super().__init__(num_classes=self.num_classes)
+
+    def accumulate(self):
+
+        assert self.average in ('pixel', 'class'), \
+            'Accuracy only support "pixel" & "class" wise average'
+
+        if self.average == 'pixel':
+            accuracy = self.cfsmtx.diagonal().sum() / (
+                    self.cfsmtx.sum() + 1e-15)
+
+        elif self.average == 'class':
+            accuracy_class = self.cfsmtx.diagonal() / self.cfsmtx.sum(axis=1)
+            accuracy = np.nanmean(accuracy_class)
+
+        accumulate_state = {
+            'accuracy': accuracy
+        }
+        return accumulate_state
+
+
+@METRICS.register_module
 class MultiLabelIoU(MultiLabelConfusionMatrix):
     def __init__(self, num_classes):
         super().__init__(num_classes)
@@ -431,7 +468,7 @@ def pairwise_temporal_iou(candidate_segments,
         if calculate_overlap_self:
             candidate_length = candidate_segment[1] - candidate_segment[0]
             t_overlap_self[:, i] = (
-                segments_intersection.astype(float) / candidate_length)
+                    segments_intersection.astype(float) / candidate_length)
 
     if candidate_segments_ndim == 1:
         t_iou = np.squeeze(t_iou, axis=1)
@@ -441,4 +478,3 @@ def pairwise_temporal_iou(candidate_segments,
         return t_iou, t_overlap_self
 
     return t_iou
-

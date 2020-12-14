@@ -1,3 +1,3 @@
 from .builder import build_metrics
 from .metrics import Accuracy, IoU, MIoU, DiceScore, \
-    MultiLabelIoU, MultiLabelMIoU, eval_ap
+    MultiLabelIoU, MultiLabelMIoU, eval_ap, MultiLabelAccuracy
