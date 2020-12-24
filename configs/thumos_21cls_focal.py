@@ -209,6 +209,7 @@ inference = dict(
             type='PbrHead',
             in_channels=512,
             out_channels=nclasses,
+            use_focal=True
         )
     )
 )

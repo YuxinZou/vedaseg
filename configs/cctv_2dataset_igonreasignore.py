@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 21
+nclasses =13
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -16,10 +16,12 @@ window_size = 256
 inference = dict(
     gpu_id='0,1',
     multi_label=multi_label,
+    threshold=0.3,
     transforms=[
         dict(type='VideoCropRawFrame',
              window_size=window_size,
              fps=fps,
+             nclasses=nclasses,
              # size=(96, 96),
              mode='test',
              value=image_pad_value,
@@ -32,7 +34,7 @@ inference = dict(
         encoder=dict(
             backbone=dict(
                 type='ResNet3d',
-                pretrained='/DATA/home/yanjiazhu/.cache/torch/checkpoints/i3d_r50_256p_32x2x1_100e_kinetics400_rgb_20200801-7d9f44de.pth',
+                pretrained='/DATA/home/yanjiazhu/.cache/torch/checkpoints/i3d.pth',
                 depth=50,
                 conv_cfg=dict(type='Conv3d'),
                 norm_eval=True,
@@ -209,12 +211,13 @@ inference = dict(
             in_channels=512,
             out_channels=nclasses,
         )
-    )
+    ),
+    postprocess=dict(type='SimplePostProcess', threshold=0.3, mini_merge=2, ignore_label=ignore_label)
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'RawFrameDataset'
-dataset_root = 'data/ssd_thumos14'
+dataset_type = 'CCTVRawFrameDataset'
+dataset_root = '/DATA/data/public/TAD/cctv'
 
 common = dict(
     seed=1234,
@@ -231,6 +234,7 @@ common = dict(
         dict(type='MultiLabelMIoU', num_classes=nclasses),
     ],
     dist_params=dict(backend='nccl'),
+    pickle_save = './test_result.pickle'
 )
 
 ## 2.1 configuration for test
@@ -241,8 +245,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/test',
-            ann_file='annotations_thumos14_20cls_test.json',
+            img_prefix='data/imgs/',
+            ann_file='cctv_action_detection_12_10.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -266,7 +270,7 @@ test = dict(
 )
 
 ## 2.2 configuration for train
-max_epochs = 200
+max_epochs = 100
 
 train = dict(
     data=dict(
@@ -276,16 +280,18 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_20cls_val.json',
+                img_prefix='data/imgs',
+                ann_file='cctv_action_detection_1127_1211.json',
                 multi_label=multi_label,
             ),
             transforms=[
                 dict(type='VideoRandomCropRawFrame',
                      window_size=window_size,
+                     nclasses=nclasses,
                      fps=fps,
                      value=image_pad_value,
-                     mask_value=ignore_label),
+                     mask_value=ignore_label,
+                     mode='ignoreasignore'),
                 dict(type='Normalize', **img_norm_cfg),
                 dict(type='ToTensor', )
             ],
@@ -307,8 +313,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/test',
-                ann_file='annotations_thumos14_20cls_test.json',
+                img_prefix='data/imgs',
+                ann_file='cctv_action_detection_12_10.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],

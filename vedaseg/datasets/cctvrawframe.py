@@ -19,7 +19,7 @@ class CCTVRawFrameDataset(BaseDataset):
                  root,
                  ann_file,
                  img_prefix,
-                 nclasses=20,
+                 nclasses=12,
                  fps=10,
                  transform=None,
                  multi_label=True,
@@ -37,9 +37,6 @@ class CCTVRawFrameDataset(BaseDataset):
         self.video_names = list(self.data.keys())
         if self.root is not None:
             self.img_prefix = os.path.join(self.root, self.img_prefix)
-
-        self.cap = cv2.VideoCapture()
-
 
     def __getitem__(self, idx):
         """Get training/test data after pipeline.
@@ -86,7 +83,6 @@ class CCTVRawFrameDataset(BaseDataset):
         data = dict(image=fnames, duration=len(fnames),
                     labels=np.array(labels), segments=np.array(segments),
                     ignore_segments=np.array(ignore_segments))
-        print(data)
         image, mask = self.process(data)
 
         return image.float(), mask.long(), self.video_names[item]
@@ -98,7 +94,7 @@ class CCTVRawFrameDataset(BaseDataset):
         """Get another random index from the same group as the given index."""
         pool = np.where(len(self.video_names))[0]
         return np.random.choice(pool)
-    
+
     def get_all_gts(self):
         """Fetch groundtruth instances of the entire dataset."""
         gts = {}
@@ -118,4 +114,3 @@ class CCTVRawFrameDataset(BaseDataset):
                                                          []).append(gt_info)
 
         return gts
-   

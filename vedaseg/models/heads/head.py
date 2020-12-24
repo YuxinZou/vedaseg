@@ -53,10 +53,15 @@ class Head(nn.Module):
 
 @HEADS.register_module
 class PbrHead(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, use_focal = False):
         super().__init__()
+        self.use_focal = use_focal
 
         self.conv = nn.Conv1d(in_channels, out_channels, 1)
-
+        if self.use_focal:
+            prior = 0.01
+            self.conv.weight.data.fill_(0)
+            self.conv.bias.data.fill_(-math.log((1.0 - prior) / prior))
+    
     def forward(self, x):
         return self.conv(x)

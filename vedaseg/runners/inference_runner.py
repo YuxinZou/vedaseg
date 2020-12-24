@@ -15,7 +15,7 @@ class InferenceRunner(Common):
         super().__init__(base_cfg)
 
         self.multi_label = inference_cfg.get('multi_label', False)
-
+        self.thres = inference_cfg.get('threshold', 0.5)
         # build inference transform
         self.transform = self._build_transform(inference_cfg['transforms'])
 
@@ -61,7 +61,9 @@ class InferenceRunner(Common):
     def compute(self, output):
         if self.multi_label:
             output = output.sigmoid()
-            output = torch.where(output >= 0.3,
+
+            output[:,:-1,:] = output[:,:-1,:] * output[:,-1,:].unsqueeze(1)
+            output = torch.where(output >= self.thres,
                                  torch.full_like(output, 1),
                                  torch.full_like(output, 0)).long()
 

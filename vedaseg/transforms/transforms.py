@@ -98,7 +98,11 @@ class SingleVideoRandomCropRawFrame:
 
                 return mask, ignore_mask
 
+            
             mask, ignore_mask = filter_segments(segments, patch)
+            print(segments)
+            print(mask)
+            print(ignore_mask)
             if mask.sum() == 0:
                 continue
 
@@ -119,10 +123,79 @@ class SingleVideoRandomCropRawFrame:
             # ignore_mask[self.nclasses - 1] = False
             # mask[ignore_mask] = self.mask_value[0]
 
-            image = self.gen_image(images, duration, start_idx, self.window_size)
+            image = self.gen_image(images, duration, start_idx,
+                                   self.window_size)
             mask = self.gen_mask(mask, duration, start_idx, self.window_size)
 
             return dict(image=image, mask=mask)
+
+
+@TRANSFORMS.register_module
+class CalcIgnoreCrop:
+    def __init__(self,
+                 nclasses=21,
+                 window_size=256,
+                 fps=10,
+                 resize=False,
+                 size=(96, 96),
+                 value=(123.675, 116.280, 103.530),
+                 ignore_th=0.2,
+                 mask_value=255,
+                 mode='train'):
+        self.nclasses = nclasses
+        self.window_size = window_size
+        self.fps = fps
+        self.resize = resize
+        self.size = size
+        self.ignore_th = ignore_th
+        self.value = np.reshape(np.array(value), [1, 1, 3])
+        self.mask_value = np.reshape(np.array(mask_value), [1])
+        self.mode = mode
+
+    def filter_segments(self, segments, patch):
+        lens = segments[:, 1] - segments[:, 0]
+
+        x1s = segments[:, 0]
+        x2s = segments[:, 1]
+        x1, x2 = patch
+
+        ss = np.maximum(x1s, x1)
+        es = np.minimum(x2s, x2)
+
+        unions = es - ss
+        iofs = np.maximum(0, unions) / lens
+        mask = np.logical_or((iofs >= self.ignore_th),
+                             (unions == self.window_size))
+        # TODO: ignore
+        ignore_mask = (iofs < self.ignore_th) * (iofs > 0)
+        return mask, ignore_mask
+
+    def __call__(self, data):
+        duration = data['duration']
+        segments = data['segments']
+        
+        if self.mode == 'train':
+            while True:
+                sample_position = int(max(0, duration - self.window_size))
+                start_idx = random.randint(0, sample_position)
+
+                patch = np.array([start_idx, start_idx + self.window_size])
+                mask, ignore_mask = self.filter_segments(segments, patch)
+                if mask.sum() == 0:
+                    continue
+
+                return dict(image=np.sum(ignore_mask), mask=1)
+
+        else:
+            sample_num = int(duration / self.window_size)
+            sample_position = [i * self.window_size for i in range(sample_num)]
+            cropped_gt = 0
+            for start_idx in sample_position:
+                patch = np.array([start_idx, start_idx + self.window_size])
+                mask, ignore_mask = self.filter_segments(segments, patch)
+                cropped_gt += np.sum(ignore_mask)
+
+            return dict(image=cropped_gt, mask=sample_num)
 
 
 @TRANSFORMS.register_module
@@ -135,7 +208,10 @@ class VideoRandomCropRawFrame:
                  size=(96, 96),
                  value=(123.675, 116.280, 103.530),
                  ignore_th=0.2,
-                 mask_value=255):
+                 mask_value=255,
+                 no_ignore_crop=False,
+                 mode='ignoreasbg',
+                 need_iof=True):
         self.nclasses = nclasses
         self.window_size = window_size
         self.fps = fps
@@ -144,6 +220,11 @@ class VideoRandomCropRawFrame:
         self.ignore_th = ignore_th
         self.value = np.reshape(np.array(value), [1, 1, 3])
         self.mask_value = np.reshape(np.array(mask_value), [1])
+        self.mode = mode
+        self.no_ignore_crop = no_ignore_crop
+        self.need_iof = need_iof
+
+        assert self.mode in ('ignoreasbg', 'ignoreasfg', 'ignoreasignore')
 
     def gen_image(self, fnames, duration, start_idx, window_size):
         end_idx = min(duration, start_idx + window_size)
@@ -205,18 +286,23 @@ class VideoRandomCropRawFrame:
 
                 unions = es - ss
                 iofs = np.maximum(0, unions) / lens
-                # print(iofs, unions)
-                mask = np.logical_or((iofs >= self.ignore_th), (unions == self.window_size))
+                mask = np.logical_or((iofs >= self.ignore_th),
+                                     (unions == self.window_size))
                 # TODO: ignore
                 ignore_mask = (iofs < self.ignore_th) * (iofs > 0)
 
                 return mask, ignore_mask
+            
 
             mask, ignore_mask = filter_segments(segments, patch)
             
-            if mask.sum() == 0:
-                continue
-            ## TODO: decouple following code
+            if not self.need_iof:
+                mask = mask | True
+            else:
+                if mask.sum() == 0:
+                 continue
+            if self.no_ignore_crop:
+                mask = mask | ignore_mask
             segment = segments[mask]
             segment[:, 1] = segment[:, 1].clip(max=patch[1])
             segment[:, 0] = segment[:, 0].clip(min=patch[0])
@@ -226,7 +312,13 @@ class VideoRandomCropRawFrame:
 
             for ignore_seg in ignore_segments:
                 # print('!!!')
-                mask[:self.nclasses - 1, ignore_seg[0]:ignore_seg[1]] = self.mask_value[0]
+                mask[:self.nclasses - 1, ignore_seg[0]:ignore_seg[1]] = \
+                    self.mask_value[0]
+                if self.mode == 'ignoreasfg':
+                    mask[self.nclasses - 1, ignore_seg[0]:ignore_seg[1]] = 1
+                elif self.mode == 'ignoreasignore':
+                    mask[self.nclasses - 1, ignore_seg[0]:ignore_seg[1]] = \
+                        self.mask_value[0]
 
             for i in range(len(label)):
                 idx = label[i]
@@ -234,11 +326,13 @@ class VideoRandomCropRawFrame:
                 mask[idx, seg[0]:seg[1]] = 1
                 mask[self.nclasses - 1, seg[0]:seg[1]] = 1
 
-            ignore_mask = np.tile(mask[self.nclasses - 1] == 0, (self.nclasses, 1))
+            ignore_mask = np.tile(mask[self.nclasses - 1] == 0,
+                                  (self.nclasses, 1))
             ignore_mask[self.nclasses - 1] = False
             mask[ignore_mask] = self.mask_value[0]
 
-            image = self.gen_image(images, duration, start_idx, self.window_size)
+            image = self.gen_image(images, duration, start_idx,
+                                   self.window_size)
             mask = self.gen_mask(mask, duration, start_idx, self.window_size)
 
             return dict(image=image, mask=mask)
@@ -299,13 +393,21 @@ class VideoCropRawFrame:
         label = data['labels']
         segment = data['segments']
         duration = data['duration']
+        if 'ignore_segments' in data:
+            ignore_segments = data['ignore_segments']
+        else:
+            ignore_segments = []
 
         mask = np.zeros((self.nclasses, duration))
+        
         for i in range(len(label)):
             idx = label[i]
             seg = segment[i]
             mask[idx, seg[0]:seg[1]] = 1
             mask[self.nclasses - 1, seg[0]:seg[1]] = 1
+
+        for ignore_seg in ignore_segments:
+            mask[:, ignore_seg[0]:ignore_seg[1]] = self.mask_value[0]
 
         ignore_mask = np.tile(mask[self.nclasses - 1] == 0, (self.nclasses, 1))
         ignore_mask[self.nclasses - 1] = False
@@ -322,16 +424,21 @@ class VideoCropRawFrame:
             # else:
             #     start_idx *= self.window_size
 
-            sample_position = int(max(0, duration - self.window_size))
-            start_idx = 0 if sample_position == 0 else random.randint(
-                0, sample_position)
+            #sample_position = int(max(0, duration - self.window_size))
+            #start_idx = 0 if sample_position == 0 else random.randint(
+            #    0, sample_position)
+            
+            clip_len = self.window_size
+            num_clips = int(np.ceil(duration / clip_len))
+            index = [i * clip_len for i in range(num_clips)]
+            start_idx = random.choice(index)
 
             image = self.gen_image(image, duration, start_idx, self.window_size)
             mask = self.gen_mask(mask, duration, start_idx, self.window_size)
 
         else:
             images, masks = [], []
-            clip_len = self.window_size#  * self.num_clip
+            clip_len = self.window_size * self.num_clip
             num_clips = int(np.ceil(duration / clip_len))
             index = [i * clip_len for i in range(num_clips)]
             for inx in index:

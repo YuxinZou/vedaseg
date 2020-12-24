@@ -82,7 +82,9 @@ class RawFrameDataset(BaseDataset):
         image, mask = self.process(data)
 
         return image.float(), mask.long(), self.video_names[item]
-
+        
+        # return image, mask, self.video_names[item]
+    
     def __len__(self):
         return len(self.video_names)
 

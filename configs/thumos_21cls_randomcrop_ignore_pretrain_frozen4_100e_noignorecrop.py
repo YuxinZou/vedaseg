@@ -1,7 +1,7 @@
 import cv2
 
 # 1. configuration for inference
-nclasses = 1
+nclasses = 21
 ignore_label = 255
 image_pad_value = (123.675, 116.280, 103.530)
 
@@ -21,7 +21,9 @@ inference = dict(
              window_size=window_size,
              fps=fps,
              # size=(96, 96),
+             nclasses=nclasses,
              mode='test',
+             num_clip=1,
              value=image_pad_value,
              mask_value=ignore_label),
         dict(type='Normalize', **img_norm_cfg),
@@ -32,13 +34,12 @@ inference = dict(
         encoder=dict(
             backbone=dict(
                 type='ResNet3d',
-                pretrained2d=True,
-                pretrained='torchvision://resnet50',
+                pretrained='/DATA/home/yanjiazhu/.cache/torch/checkpoints/i3d.pth',
                 depth=50,
                 conv_cfg=dict(type='Conv3d'),
-                norm_eval=False,
+                norm_eval=True,
                 # with_pool2=False,
-                frozen_stages=-1,
+                frozen_stages=3,
                 inflate=(
                     (1, 1, 1), (1, 0, 1, 0), (1, 0, 1, 0, 1, 0), (0, 1, 0)),
                 zero_init_residual=False),
@@ -210,15 +211,16 @@ inference = dict(
             in_channels=512,
             out_channels=nclasses,
         )
-    )
+    ),
+    postprocess=dict(type='SimplePostProcess', threshold=0.3, mini_merge=2, ignore_label=ignore_label)
 )
 # 2. configuration for train/test
 root_workdir = 'workdir'
-dataset_type = 'SingleRawFrameDataset'
-dataset_root = 'data/thumos14'
+dataset_type = 'RawFrameDataset'
+dataset_root = '/DATA/data/public/TAD/thumos14/'
 
 common = dict(
-    seed=0,
+    seed=1234,
     logger=dict(
         handlers=(
             dict(type='StreamHandler', level='INFO'),
@@ -232,6 +234,7 @@ common = dict(
         dict(type='MultiLabelMIoU', num_classes=nclasses),
     ],
     dist_params=dict(backend='nccl'),
+    pickle_save = './analysis_gap.pickle'
 )
 
 ## 2.1 configuration for test
@@ -242,8 +245,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/test',
-            ann_file='annotations_thumos14_test.json',
+            img_prefix='resized_data_96_160/images/val',
+            ann_file='annotations_thumos14_20cls_val.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],
@@ -267,7 +270,7 @@ test = dict(
 )
 
 ## 2.2 configuration for train
-max_epochs = 200
+max_epochs = 100
 
 train = dict(
     data=dict(
@@ -278,17 +281,17 @@ train = dict(
                 nclasses=nclasses,
                 fps=fps,
                 img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_val.json',
+                ann_file='annotations_thumos14_20cls_val.json',
                 multi_label=multi_label,
             ),
             transforms=[
-                dict(type='VideoCropRawFrame',
+                dict(type='VideoRandomCropRawFrame',
                      window_size=window_size,
                      fps=fps,
-                     # size=(96, 96),
-                     mode='train',
+                     nclasses=nclasses,
                      value=image_pad_value,
-                     mask_value=ignore_label),
+                     mask_value=ignore_label,
+                     no_ignore_crop=True),
                 dict(type='Normalize', **img_norm_cfg),
                 dict(type='ToTensor', )
             ],
@@ -298,7 +301,7 @@ train = dict(
             dataloader=dict(
                 type='DataLoader',
                 samples_per_gpu=4,
-                workers_per_gpu=2,
+                workers_per_gpu=4,
                 shuffle=True,
                 drop_last=False,
                 pin_memory=True,
@@ -310,8 +313,8 @@ train = dict(
                 root=dataset_root,
                 nclasses=nclasses,
                 fps=fps,
-                img_prefix='resized_data_96_160/images/val',
-                ann_file='annotations_thumos14_val.json',
+                img_prefix='resized_data_96_160/images/test',
+                ann_file='annotations_thumos14_20cls_test.json',
                 multi_label=multi_label,
             ),
             transforms=inference['transforms'],

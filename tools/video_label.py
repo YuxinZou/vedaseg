@@ -17,7 +17,12 @@ def cv2ImgAddText(img, texts, middle, top, text_color, text_size):
     texts = set(texts)
     for text in list(texts):
         # STHeiti.ttf  msjh.ttf
+<<<<<<< HEAD
         fontText = ImageFont.truetype("/DATA/home/yuxinzou/yangshi/vedaseg/tools/STHeiti.ttf", text_size, encoding="utf-8")
+=======
+        fontText = ImageFont.truetype("STHeiti.ttf", text_size,
+                                      encoding="utf-8")
+>>>>>>> 49c210114351b6583fc6c7d8b0d16585df30d2f8
         text_w, text_h = fontText.getsize(text)
         x1 = middle - int(text_w / 2)
         draw.text((x1, top_), text, text_color, font=fontText)
@@ -107,16 +112,25 @@ class Video:
                   anno[i]['segment'][0] < current_time <
                   anno[i]['segment'][1]]
         if len(indexs):
+<<<<<<< HEAD
             texts = [f"{anno[i]['label']}" for i in indexs]
+=======
+            texts = [f"{self.MAP[anno[i]['label']]}" for i in indexs]
+>>>>>>> 49c210114351b6583fc6c7d8b0d16585df30d2f8
             frame = cv2ImgAddText(frame, texts,
                                   word_x, word_y,
                                   color, 50)
         return frame
 
     def generate_all(self, score=0.2):
+<<<<<<< HEAD
         ids = os.listdir(self.root)
         for id in tqdm(ids):
             id, _ = os.path.splitext(id)
+=======
+        ids = list(self.data.keys())
+        for id in tqdm(ids):
+>>>>>>> 49c210114351b6583fc6c7d8b0d16585df30d2f8
             self.generate_single(id, score)
 
     def find_video(self):
@@ -126,6 +140,7 @@ class Video:
 def parse_args():
     parser = argparse.ArgumentParser(description='Video label')
     parser.add_argument('--root', type=str,
+<<<<<<< HEAD
                         default='/DATA/data/public/TAD/cctv/11_27/videos')
     parser.add_argument('--json_file', type=str,
                         default='/DATA/data/public/TAD/cctv/11_27/cctv_action_detection_11_27.json')
@@ -133,6 +148,15 @@ def parse_args():
                         default='../train_result.pickle')
     parser.add_argument('--save_path', type=str,
                         default='../data/cctv/result/')
+=======
+                        default='../data/cctv/11-27/cctv_11_27/')
+    parser.add_argument('--json_file', type=str,
+                        default='../data/cctv/11-27/cctv_action_detection_11_27.json')
+    parser.add_argument('--pickle_file', type=str,
+                        default='../data/cctv/train_result.pickle')
+    parser.add_argument('--save_path', type=str,
+                        default='../data/cctv/11-27/result/')
+>>>>>>> 49c210114351b6583fc6c7d8b0d16585df30d2f8
 
     args = parser.parse_args()
     return args
@@ -160,6 +184,11 @@ if __name__ == '__main__':
     video = Video(args.root, args.save_path, args.json_file, args.pickle_file)
     # print(video.data)
     #  007112e808f054701bbf5874c0dc250b
+<<<<<<< HEAD
     video.generate_single('20201127_000004')
     # video.generate_all(score=0.2)
 
+=======
+    video.generate_single('20201127_000160')
+    # video.generate_all(score=0.2)
+>>>>>>> 49c210114351b6583fc6c7d8b0d16585df30d2f8

@@ -55,12 +55,12 @@ class TestRunner(InferenceRunner):
 
                     output = self.model(image)
 
-                
+                print(output.shape)
+                print(mask.shape)
                 #pred, valid_output = self.postprocess(output, mask)
                 #model_output.update({fname[0]: valid_output})
-                #prediction.update({fname[0]: pred})
+                prediction.update({fname[0]: [output.cpu(), mask.cpu()]})
                 output = self.compute(output)
-                print(output.shape, mask.shape)
                 output, shape_max = gather_tensor(output)
                 mask, shape_max = gather_tensor(mask)
 
@@ -77,7 +77,7 @@ class TestRunner(InferenceRunner):
         self.logger.info('Test Result: {}'.format(', '.join(
             ['{}: {}'.format(k, np.round(v, 4)) for k, v in res.items()])))
         
-        #self.save_prediction(prediction)
+        self.save_prediction(prediction)
         #plain_detections = self.get_predictions(prediction)
         #self.evaluate(plain_detections)
         return res
