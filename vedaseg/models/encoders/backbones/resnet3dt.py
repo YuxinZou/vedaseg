@@ -796,7 +796,7 @@ class ResNet3dt(nn.Module):
             torch.Tensor: The feature of the input
             samples extracted by the backbone.
         """
-        feats = {}
+        feats = {'c_ori': x}
 
         x = self.conv1(x)
         feats['c0'] = self.avg_pool(x).reshape(x.shape[:-2])

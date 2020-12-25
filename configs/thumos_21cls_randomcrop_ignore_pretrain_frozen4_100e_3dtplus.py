@@ -31,23 +31,19 @@ inference = dict(
         # model/encoder
         encoder=dict(
             backbone=dict(
-                type='ResNet3d',
+                type='ResNet3dt',
                 pretrained='/DATA/home/yanjiazhu/.cache/torch/checkpoints/i3d.pth',
                 depth=50,
                 conv_cfg=dict(type='Conv3d'),
                 norm_eval=True,
+                out_indices=(0, 1, 2, 3),
+                temporal_strides=(1, 2, 2, 2),
+                with_pool2=False,
                 # with_pool2=False,
                 frozen_stages=3,
                 inflate=(
                     (1, 1, 1), (1, 0, 1, 0), (1, 0, 1, 0, 1, 0), (0, 1, 0)),
                 zero_init_residual=False),
-            enhance=dict(
-                type='CPNetConv',
-                from_layer='c1',
-                in_channels=2048,
-                out_channels=256,
-                norm_cfg=norm_cfg,
-            ),
         ),
         decoder=dict(
             type='GFPN',
@@ -56,45 +52,9 @@ inference = dict(
                 # model/decoder/blocks/block1
                 dict(
                     type='JunctionBlock',
-                    fusion_method='add',
+                    fusion_method='concat',
                     top_down=dict(
-                        from_layer='c5',
-                        upsample=dict(
-                            type='Upsample1d',
-                            scale_factor=2,
-                            mode='linear',
-                            align_corners=True,
-                        ),
-                    ),
-                    lateral=dict(
                         from_layer='c4',
-                        type='ConvModule',
-                        in_channels=256,
-                        out_channels=256,
-                        kernel_size=3,
-                        padding=1,
-                        conv_cfg=dict(type='Conv1d'),
-                        norm_cfg=norm_cfg,
-                        act_cfg=dict(type='Relu', inplace=True),
-                    ),
-                    post=dict(
-                        type='ConvModule',
-                        in_channels=256,
-                        out_channels=256,
-                        kernel_size=3,
-                        padding=1,
-                        conv_cfg=dict(type='Conv1d'),
-                        norm_cfg=norm_cfg,
-                        act_cfg=dict(type='Relu', inplace=True),
-                    ),
-                    to_layer='p4',
-                ),  # 16
-                # model/decoder/blocks/block2
-                dict(
-                    type='JunctionBlock',
-                    fusion_method='add',
-                    top_down=dict(
-                        from_layer='p4',
                         upsample=dict(
                             type='Upsample1d',
                             scale_factor=2,
@@ -104,18 +64,18 @@ inference = dict(
                     ),
                     lateral=dict(
                         from_layer='c3',
-                        type='ConvModule',
-                        in_channels=256,
-                        out_channels=256,
-                        kernel_size=3,
-                        padding=1,
-                        conv_cfg=dict(type='Conv1d'),
-                        norm_cfg=norm_cfg,
-                        act_cfg=dict(type='Relu', inplace=True),
+                        # type='ConvModule',
+                        # in_channels=1024,
+                        # out_channels=256,
+                        # kernel_size=3,
+                        # padding=1,
+                        # conv_cfg=dict(type='Conv1d'),
+                        # norm_cfg=norm_cfg,
+                        # act_cfg=dict(type='Relu', inplace=True),
                     ),
                     post=dict(
                         type='ConvModule',
-                        in_channels=256,
+                        in_channels=3072,
                         out_channels=256,
                         kernel_size=3,
                         padding=1,
@@ -124,11 +84,11 @@ inference = dict(
                         act_cfg=dict(type='Relu', inplace=True),
                     ),
                     to_layer='p3',
-                ),  # 8
-                # model/decoder/blocks/block3
+                ),  # 16
+                # model/decoder/blocks/block2
                 dict(
                     type='JunctionBlock',
-                    fusion_method='add',
+                    fusion_method='concat',
                     top_down=dict(
                         from_layer='p3',
                         upsample=dict(
@@ -140,18 +100,18 @@ inference = dict(
                     ),
                     lateral=dict(
                         from_layer='c2',
-                        type='ConvModule',
-                        in_channels=256,
-                        out_channels=256,
-                        kernel_size=3,
-                        padding=1,
-                        conv_cfg=dict(type='Conv1d'),
-                        norm_cfg=norm_cfg,
-                        act_cfg=dict(type='Relu', inplace=True),
+                        # type='ConvModule',
+                        # in_channels=256,
+                        # out_channels=256,
+                        # kernel_size=3,
+                        # padding=1,
+                        # conv_cfg=dict(type='Conv1d'),
+                        # norm_cfg=norm_cfg,
+                        # act_cfg=dict(type='Relu', inplace=True),
                     ),
                     post=dict(
                         type='ConvModule',
-                        in_channels=256,
+                        in_channels=768,
                         out_channels=256,
                         kernel_size=3,
                         padding=1,
@@ -160,11 +120,11 @@ inference = dict(
                         act_cfg=dict(type='Relu', inplace=True),
                     ),
                     to_layer='p2',
-                ),  # 4
-                # model/decoder/blocks/block4
+                ),  # 8
+                # model/decoder/blocks/block3
                 dict(
                     type='JunctionBlock',
-                    fusion_method='add',
+                    fusion_method='concat',
                     top_down=dict(
                         from_layer='p2',
                         upsample=dict(
@@ -176,18 +136,18 @@ inference = dict(
                     ),
                     lateral=dict(
                         from_layer='c1',
-                        type='ConvModule',
-                        in_channels=2048,
-                        out_channels=256,
-                        kernel_size=3,
-                        padding=1,
-                        conv_cfg=dict(type='Conv1d'),
-                        norm_cfg=norm_cfg,
-                        act_cfg=dict(type='Relu', inplace=True),
+                        # type='ConvModule',
+                        # in_channels=256,
+                        # out_channels=256,
+                        # kernel_size=3,
+                        # padding=1,
+                        # conv_cfg=dict(type='Conv1d'),
+                        # norm_cfg=norm_cfg,
+                        # act_cfg=dict(type='Relu', inplace=True),
                     ),
                     post=dict(
                         type='ConvModule',
-                        in_channels=256,
+                        in_channels=512,
                         out_channels=256,
                         kernel_size=3,
                         padding=1,
@@ -196,11 +156,47 @@ inference = dict(
                         act_cfg=dict(type='Relu', inplace=True),
                     ),
                     to_layer='p1',
+                ),  # 4
+                # model/decoder/blocks/block4
+                dict(
+                    type='JunctionBlock',
+                    fusion_method='concat',
+                    top_down=dict(
+                        from_layer='p1',
+                        upsample=dict(
+                            type='Upsample1d',
+                            scale_factor=2,
+                            mode='linear',
+                            align_corners=True,
+                        ),
+                    ),
+                    lateral=dict(
+                        from_layer='c0',
+                        # type='ConvModule',
+                        # in_channels=2048,
+                        # out_channels=256,
+                        # kernel_size=3,
+                        # padding=1,
+                        # conv_cfg=dict(type='Conv1d'),
+                        # norm_cfg=norm_cfg,
+                        # act_cfg=dict(type='Relu', inplace=True),
+                    ),
+                    post=dict(
+                        type='ConvModule',
+                        in_channels=320,
+                        out_channels=256,
+                        kernel_size=3,
+                        padding=1,
+                        conv_cfg=dict(type='Conv1d'),
+                        norm_cfg=norm_cfg,
+                        act_cfg=dict(type='Relu', inplace=True),
+                    ),
+                    to_layer='p0',
                 ),  # 2
             ],
             fusion=dict(
-                type='FBNetv2',
-                top='p1',
+                type='FBNetv3',
+                top='p0',
                 bottle='c_ori'
             ),
         ),
@@ -241,8 +237,8 @@ test = dict(
             root=dataset_root,
             nclasses=nclasses,
             fps=fps,
-            img_prefix='resized_data_96_160/images/val',
-            ann_file='annotations_thumos14_20cls_val.json',
+            img_prefix='resized_data_96_160/images/test',
+            ann_file='annotations_thumos14_20cls_test.json',
             multi_label=multi_label,
         ),
         transforms=inference['transforms'],

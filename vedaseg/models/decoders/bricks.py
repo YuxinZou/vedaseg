@@ -209,3 +209,43 @@ class FBNetv2(nn.Module):
         feat2 = self.layer2(feats[self.bottle])
         feat2 = feat2.reshape(feat2.shape[:-2])
         return torch.cat([feat1, feat2], 1)
+
+
+@BRICKS.register_module
+class FBNetv3(nn.Module):
+    def __init__(self, top='p1', bottle='c_ori',
+                 conv_cfg=dict(type='Conv1d'),
+                 norm_cfg=dict(type='BN1d'),
+                 act_cfg=dict(type='Relu', inplace=True)):
+        super().__init__()
+        self.top = top
+        self.bottle = bottle
+
+        self.layer1 = nn.Sequential(
+            nn.Upsample(scale_factor=2,
+                        mode='linear',
+                        align_corners=True,),
+            ConvModule(256, 256, kernel_size=3,
+                       padding=1, conv_cfg=conv_cfg,
+                       norm_cfg=norm_cfg, act_cfg=act_cfg),
+        )
+
+        self.layer2 = nn.Sequential(
+            nn.Conv3d(3, 64, kernel_size=(3, 3, 3),
+                      stride=(1, 2, 2), padding=1), nn.ReLU(inplace=True),
+            nn.Conv3d(64, 128, kernel_size=(3, 3, 3),
+                      stride=(1, 2, 2), padding=1), nn.ReLU(inplace=True),
+            nn.Conv3d(128, 256, kernel_size=(3, 3, 3),
+                      stride=(1, 2, 2), padding=1), nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool3d((None, 1, 1)),
+        )
+
+    def forward(self, feats):
+
+        # import pdb
+        # pdb.set_trace()
+
+        feat1 = self.layer1(feats[self.top])
+        feat2 = self.layer2(feats[self.bottle])
+        feat2 = feat2.reshape(feat2.shape[:-2])
+        return torch.cat([feat1, feat2], 1)
